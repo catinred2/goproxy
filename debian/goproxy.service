@@ -3,9 +3,12 @@ Description=goproxy
 After=network-online.target
 
 [Service]
+Environment='STDOUT=/var/log/goproxy.log'
+Environment='STDERR=/var/log/goproxy.log'
 EnvironmentFile=-/etc/default/goproxy
-ExecStart=/usr/bin/goproxy
+ExecStart=/bin/sh -c "exec /usr/bin/goproxy > ${STDOUT} 2> ${STDERR}"
 Restart=on-failure
+RestartSec=30
 
 [Install]
 WantedBy=multi-user.target
