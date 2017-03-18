@@ -20,7 +20,7 @@ type SessionFactory struct {
 func (sf *SessionFactory) CreateSession() (s *Session, err error) {
 	log.Notice("msocks try to connect %s.", sf.serveraddr)
 
-	conn, err := sf.Dialer.Dial("tcp", sf.serveraddr)
+	conn, err := sf.Dialer.Dial("tcp4", sf.serveraddr)
 	if err != nil {
 		return
 	}
@@ -66,12 +66,12 @@ func (sf *SessionFactory) CreateSession() (s *Session, err error) {
 }
 
 type SessionPool struct {
-	sess_lock      sync.RWMutex // sess pool locker
-	factory_lock     sync.Mutex // factory locker
-	sess    map[*Session]struct{}
+	sess_lock    sync.RWMutex // sess pool locker
+	factory_lock sync.Mutex   // factory locker
+	sess         map[*Session]struct{}
 	factories    []*SessionFactory
-	MinSess int
-	MaxConn int
+	MinSess      int
+	MaxConn      int
 }
 
 func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {

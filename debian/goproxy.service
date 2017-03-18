@@ -6,7 +6,7 @@ After=network-online.target
 Environment='STDOUT=/var/log/goproxy.log'
 Environment='STDERR=/var/log/goproxy.log'
 EnvironmentFile=-/etc/default/goproxy
-ExecStart=/bin/sh -c "exec /usr/bin/goproxy > ${STDOUT} 2> ${STDERR}"
+ExecStart=/bin/sh -c "exec /usr/bin/goproxy >> ${STDOUT} 2>> ${STDERR}"
 Restart=on-failure
 RestartSec=30
 
