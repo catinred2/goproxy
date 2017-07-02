@@ -121,6 +121,10 @@ func (mm *MsocksManager) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/lookup", mm.HandlerLookup)
 	mux.HandleFunc("/cutoff", mm.HandlerCutoff)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 }
 
 func (mm *MsocksManager) HandlerMain(w http.ResponseWriter, req *http.Request) {
