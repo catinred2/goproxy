@@ -20,7 +20,7 @@ type SessionFactory struct {
 func (sf *SessionFactory) CreateSession() (s *Session, err error) {
 	log.Notice("msocks try to connect %s.", sf.serveraddr)
 
-	conn, err := sf.Dialer.Dial("tcp", sf.serveraddr)
+	conn, err := sf.Dialer.Dial("tcp4", sf.serveraddr)
 	if err != nil {
 		return
 	}

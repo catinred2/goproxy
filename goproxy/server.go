@@ -67,7 +67,7 @@ func run_server(basecfg *Config) (err error) {
 		return
 	}
 
-	listener, err := net.Listen("tcp", cfg.Listen)
+	listener, err := net.Listen("tcp4", cfg.Listen)
 	if err != nil {
 		return
 	}
