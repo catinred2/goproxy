@@ -9,6 +9,7 @@ import (
 	"github.com/shell909090/goproxy/cryptconn"
 	"github.com/shell909090/goproxy/ipfilter"
 	"github.com/shell909090/goproxy/msocks"
+	"github.com/shell909090/goproxy/proxy"
 	"github.com/shell909090/goproxy/sutils"
 )
 
@@ -146,5 +147,5 @@ func run_httproxy(basecfg *Config) (err error) {
 		go CreatePortmap(pm, dialer)
 	}
 
-	return http.ListenAndServe(cfg.Listen, NewProxy(dialer, cfg.HttpUser, cfg.HttpPassword))
+	return http.ListenAndServe(cfg.Listen, proxy.NewProxy(dialer, cfg.HttpUser, cfg.HttpPassword))
 }

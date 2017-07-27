@@ -1,12 +1,15 @@
-package main
+package proxy
 
 import (
 	"io"
 	"net/http"
 	"strings"
 
+	logging "github.com/op/go-logging"
 	"github.com/shell909090/goproxy/sutils"
 )
+
+var logger = logging.MustGetLogger("logger")
 
 var hopHeaders = []string{
 	"Connection",
