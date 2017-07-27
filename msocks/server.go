@@ -43,7 +43,9 @@ func (ms *MsocksServer) OnAuth(stream io.ReadWriteCloser) (err error) {
 		return ErrUnexpectedPkg
 	}
 
-	log.Notice("auth with username: %s, password: %s.", ft.Username, ft.Password)
+	if ft.Username != "" || ft.Password != "" {
+		log.Notice("auth with username: %s, password: %s.", ft.Username, ft.Password)
+	}
 	if ms.userpass != nil {
 		password1, ok := ms.userpass[ft.Username]
 		if !ok || (ft.Password != password1) {

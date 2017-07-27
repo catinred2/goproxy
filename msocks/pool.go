@@ -33,7 +33,9 @@ func (sf *SessionFactory) CreateSession() (s *Session, err error) {
 		ti.Stop()
 	}()
 
-	log.Notice("auth with username: %s, password: %s.", sf.username, sf.password)
+	if sf.username != "" || sf.password != "" {
+		log.Notice("auth with username: %s, password: %s.", sf.username, sf.password)
+	}
 	fb := NewFrameAuth(0, sf.username, sf.password)
 	buf, err := fb.Packed()
 	if err != nil {
@@ -60,18 +62,18 @@ func (sf *SessionFactory) CreateSession() (s *Session, err error) {
 		return nil, fmt.Errorf("create connection failed with code: %d.", ft.Errno)
 	}
 
-	log.Notice("auth passwd.")
+	log.Notice("auth passed.")
 	s = NewSession(conn)
 	return
 }
 
 type SessionPool struct {
-	sess_lock      sync.RWMutex // sess pool locker
-	factory_lock     sync.Mutex // factory locker
-	sess    map[*Session]struct{}
+	sess_lock    sync.RWMutex // sess pool locker
+	factory_lock sync.Mutex   // factory locker
+	sess         map[*Session]struct{}
 	factories    []*SessionFactory
-	MinSess int
-	MaxConn int
+	MinSess      int
+	MaxConn      int
 }
 
 func CreateSessionPool(MinSess, MaxConn int) (sp *SessionPool) {

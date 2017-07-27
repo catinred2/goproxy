@@ -33,7 +33,7 @@ const (
 var (
 	ErrNoSession       = errors.New("session in pool but can't pick one.")
 	ErrSessionNotFound = errors.New("session not found.")
-	ErrAuthFailed      = errors.New("auth failed.")
+	ErrAuthFailed      = errors.New("auth failed %s.")
 	ErrAuthTimeout     = errors.New("auth timeout %s.")
 	ErrStreamNotExist  = errors.New("stream not exist.")
 	ErrQueueClosed     = errors.New("queue closed.")
