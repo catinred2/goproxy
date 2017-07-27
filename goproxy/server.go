@@ -1,23 +1,64 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/shell909090/goproxy/cryptconn"
-	"github.com/shell909090/goproxy/ipfilter"
 	"github.com/shell909090/goproxy/msocks"
 	"github.com/shell909090/goproxy/sutils"
 )
 
-func httpserver(addr string, handler http.Handler) {
-	for {
-		err := http.ListenAndServe(addr, handler)
+type ServerConfig struct {
+	Config
+	CryptMode   string
+	RootCAs     string
+	CertFile    string
+	CertKeyFile string
+	ForceIPv4   bool
+	Cipher      string
+	Key         string
+	Auth        map[string]string
+}
+
+func LoadServerConfig(basecfg *Config) (cfg *ServerConfig, err error) {
+	err = LoadJson(ConfigFile, &cfg)
+	if err != nil {
+		return
+	}
+	cfg.Config = *basecfg
+	if cfg.Cipher == "" {
+		cfg.Cipher = "aes"
+	}
+	return
+}
+
+func listener_use_tls(raw net.Listener, cfg *ServerConfig) (wrapped net.Listener, err error) {
+	var RootCAs *x509.CertPool
+
+	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.CertKeyFile)
+	if err != nil {
+		return
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
+
+	if cfg.RootCAs != "" {
+		RootCAs, err = loadCertPool(cfg.RootCAs)
 		if err != nil {
-			logger.Error("%s", err.Error())
 			return
 		}
+		config.ClientAuth = tls.RequireAndVerifyClientCert
+		config.ClientCAs = RootCAs
 	}
+
+	wrapped = tls.NewListener(raw, config)
+	return
 }
 
 func run_server(basecfg *Config) (err error) {
@@ -31,7 +72,11 @@ func run_server(basecfg *Config) (err error) {
 		return
 	}
 
-	listener, err = cryptconn.NewListener(listener, cfg.Cipher, cfg.Key)
+	if strings.ToLower(cfg.CryptMode) == "tls" {
+		listener, err = listener_use_tls(listener, cfg)
+	} else {
+		listener, err = cryptconn.NewListener(listener, cfg.Cipher, cfg.Key)
+	}
 	if err != nil {
 		return
 	}
@@ -54,54 +99,4 @@ func run_server(basecfg *Config) (err error) {
 	}
 
 	return svr.Serve(listener)
-}
-
-func run_httproxy(basecfg *Config) (err error) {
-	cfg, err := LoadClientConfig(basecfg)
-	if err != nil {
-		return
-	}
-
-	var dialer sutils.Dialer
-	sp := msocks.CreateSessionPool(cfg.MinSess, cfg.MaxConn)
-
-	for _, srv := range cfg.Servers {
-		cipher := srv.Cipher
-		if cipher == "" {
-			cipher = cfg.Cipher
-		}
-		dialer, err = cryptconn.NewDialer(sutils.DefaultTcpDialer, cipher, srv.Key)
-		if err != nil {
-			return
-		}
-		sp.AddSessionFactory(dialer, srv.Server, srv.Username, srv.Password)
-	}
-
-	dialer = sp
-
-	if cfg.DnsNet == TypeInternal {
-		sutils.DefaultLookuper = sp
-	}
-
-	if cfg.AdminIface != "" {
-		mux := http.NewServeMux()
-		NewMsocksManager(sp).Register(mux)
-		go httpserver(cfg.AdminIface, mux)
-	}
-
-	if cfg.Blackfile != "" {
-		fdialer := ipfilter.NewFilteredDialer(dialer)
-		err = fdialer.LoadFilter(sutils.DefaultTcpDialer, cfg.Blackfile)
-		if err != nil {
-			logger.Error("%s", err.Error())
-			return
-		}
-		dialer = fdialer
-	}
-
-	for _, pm := range cfg.Portmaps {
-		go CreatePortmap(pm, dialer)
-	}
-
-	return http.ListenAndServe(cfg.Listen, NewProxy(dialer, cfg.HttpUser, cfg.HttpPassword))
 }

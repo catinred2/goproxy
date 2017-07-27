@@ -61,7 +61,6 @@ msocks协议最大的改进是增加了连接复用能力，这个功能允许�
 * adminiface: 服务器端的控制端口，可以看到服务器端有多少个连接，分别是谁。
 * dnsaddrs: dns查询的目标地址列表。如不定义则采用系统自带的dns系统，会读取默认配置并使用。
 * dnsnet: dns的网络模式，默认为udp模式，设定为tcp可以采用tcp模式，设定为internal采用内置模式。
-* cipher: 加密算法，可以为aes/des/tripledes，默认aes。
 
 ## server模式
 
@@ -71,8 +70,13 @@ msocks协议最大的改进是增加了连接复用能力，这个功能允许�
 
 ## server模式专用配置
 
+* cryptmode: 字符串。tls表示使用tls模式，其他表示使用cryptconn模式。
+* rootcas: 字符串，只在tls模式下生效。以回车分割的多行字符串，每行一个文件路径，表示服务器认可的客户端ca根。不设定的话服务器端不做客户端证书验证。
+* certfile: 字符串，只在tls模式下生效。服务器端使用的证书文件。
+* certkeyfile: 字符串，只在tls模式下生效。服务器端使用的证书密钥。
 * forceipv4: 布尔型。是否强制任何拨号都使用ipv4。
-* key: 密钥。16个随机数据base64后的结果。
+* cipher: 加密算法，只在cryptconn模式下生效。可以为aes/des/tripledes，默认aes。
+* key: 密钥，只在cryptconn模式下生效。16个随机数据base64后的结果，客户端必须严格匹配方能通讯。
 * auth: dict类型。认证用户名/密码对。
 
 ## http模式
@@ -96,6 +100,10 @@ http模式运行在本地，需要一个境外的server服务器做支撑，对�
 其中servers是一个列表，成员定义如下：
 
 * server: 中间代理服务器地址。
+* cryptmode: 字符串。tls表示使用tls模式，其他表示使用cryptconn模式。
+* rootcas: 字符串，只在tls模式下生效。以回车分割的多行字符串，每行一个文件路径，表示客户认可的服务器端ca根。不设定的话使用系统根证书设定。
+* certfile: 字符串，只在tls模式下生效。客户端使用的证书文件。
+* certkeyfile: 字符串，只在tls模式下生效。客户端使用的证书密钥。
 * cipher: 加密算法，可以为aes/des/tripledes。如果未定义，则以config层中的配置为准。
 * key: 密钥。16个随机数据base64后的结果。
 * username: 连接用户名。

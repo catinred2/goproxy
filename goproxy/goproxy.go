@@ -30,43 +30,6 @@ type Config struct {
 
 	DnsAddrs []string
 	DnsNet   string
-
-	Cipher string
-}
-
-type ServerConfig struct {
-	Config
-	ForceIPv4 bool
-	Key       string
-	Auth      map[string]string
-}
-
-type ServerDefine struct {
-	Server   string
-	Cipher   string
-	Key      string
-	Username string
-	Password string
-}
-
-type PortMap struct {
-	Net string
-	Src string
-	Dst string
-}
-
-type ClientConfig struct {
-	Config
-	Blackfile string
-
-	MinSess int
-	MaxConn int
-	Servers []*ServerDefine
-
-	HttpUser     string
-	HttpPassword string
-
-	Portmaps []PortMap
 }
 
 func init() {
@@ -86,35 +49,10 @@ func LoadJson(configfile string, cfg interface{}) (err error) {
 	return
 }
 
-func LoadServerConfig(basecfg *Config) (cfg ServerConfig, err error) {
-	err = LoadJson(ConfigFile, &cfg)
-	if err != nil {
-		return
-	}
-	cfg.Config = *basecfg
-	return
-}
-
-func LoadClientConfig(basecfg *Config) (cfg ClientConfig, err error) {
-	err = LoadJson(ConfigFile, &cfg)
-	if err != nil {
-		return
-	}
-	cfg.Config = *basecfg
-	if cfg.MaxConn == 0 {
-		cfg.MaxConn = 16
-	}
-	return
-}
-
 func LoadConfig() (cfg Config, err error) {
 	err = LoadJson(ConfigFile, &cfg)
 	if err != nil {
 		return
-	}
-
-	if cfg.Cipher == "" {
-		cfg.Cipher = "aes"
 	}
 	return
 }
