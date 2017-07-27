@@ -9,6 +9,7 @@ import (
 	"github.com/shell909090/goproxy/cryptconn"
 	"github.com/shell909090/goproxy/ipfilter"
 	"github.com/shell909090/goproxy/msocks"
+	"github.com/shell909090/goproxy/portmapper"
 	"github.com/shell909090/goproxy/proxy"
 	"github.com/shell909090/goproxy/sutils"
 )
@@ -25,12 +26,6 @@ type ServerDefine struct {
 	Password    string
 }
 
-type PortMap struct {
-	Net string
-	Src string
-	Dst string
-}
-
 type ClientConfig struct {
 	Config
 	Blackfile string
@@ -42,7 +37,7 @@ type ClientConfig struct {
 	HttpUser     string
 	HttpPassword string
 
-	Portmaps []PortMap
+	Portmaps []portmapper.PortMap
 }
 
 func LoadClientConfig(basecfg *Config) (cfg *ClientConfig, err error) {
@@ -144,7 +139,7 @@ func run_httproxy(basecfg *Config) (err error) {
 	}
 
 	for _, pm := range cfg.Portmaps {
-		go CreatePortmap(pm, dialer)
+		go portmapper.CreatePortmap(pm, dialer)
 	}
 
 	return http.ListenAndServe(cfg.Listen, proxy.NewProxy(dialer, cfg.HttpUser, cfg.HttpPassword))

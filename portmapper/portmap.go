@@ -1,4 +1,4 @@
-package main
+package portmapper
 
 import (
 	"io"
@@ -8,8 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	logging "github.com/op/go-logging"
 	"github.com/shell909090/goproxy/sutils"
 )
+
+var logger = logging.MustGetLogger("portmap")
 
 const (
 	UDP_TICK           = 60
@@ -17,6 +20,12 @@ const (
 	UDP_BLOCK_INTERVAL = 500
 	UDP_READBUFFER     = 1048576
 )
+
+type PortMap struct {
+	Net string
+	Src string
+	Dst string
+}
 
 type UdpPortMapper struct {
 	lock  sync.Mutex

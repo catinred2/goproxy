@@ -1,4 +1,4 @@
-package main
+package portmapper
 
 var freelist = make(chan []byte, 3)
 

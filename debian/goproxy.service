@@ -3,6 +3,8 @@ Description=goproxy
 After=network-online.target
 
 [Service]
+User=nobody
+Group=nogroup
 Environment='STDOUT=/var/log/goproxy.log'
 Environment='STDERR=/var/log/goproxy.log'
 EnvironmentFile=-/etc/default/goproxy
