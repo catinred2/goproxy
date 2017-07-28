@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
 	"github.com/shell909090/goproxy/ipfilter"
-	"github.com/shell909090/goproxy/msocks"
 	"github.com/shell909090/goproxy/portmapper"
 	"github.com/shell909090/goproxy/proxy"
 	"github.com/shell909090/goproxy/sutils"
@@ -80,7 +80,7 @@ func run_httproxy(basecfg *Config) (err error) {
 	}
 
 	var dialer sutils.Dialer
-	sp := msocks.CreateSessionPool(cfg.MinSess, cfg.MaxConn)
+	sp := connpool.NewDialer(cfg.MinSess, cfg.MaxConn)
 
 	for _, srv := range cfg.Servers {
 		dialer, err = srv.MakeDialer()
@@ -98,7 +98,7 @@ func run_httproxy(basecfg *Config) (err error) {
 
 	if cfg.AdminIface != "" {
 		mux := http.NewServeMux()
-		NewMsocksManager(sp).Register(mux)
+		sp.Register(mux)
 		go httpserver(cfg.AdminIface, mux)
 	}
 

@@ -230,6 +230,12 @@ If dns response get multiple result, one of them matched blacklist will made gop
 		]
 	}
 
+## TLS权限问题
+
+默认情况下，goproxy使用nobody和nogroup作为启动用户和组。这是一个非常小权限的组，在系统内相对比较安全。
+
+但是在TLS模式下，goproxy需要读取证书文件。这些文件（尤其是key）出于安全理由，往往都指定为root读写，其他人没有权限。在这种情况下，需要修改/lib/systemd/system/goproxy.service，将nobody和nogroup替换为root。然后再用`systemctl daemon-reload`重新加载配置，用`systemctl restart goproxy`重启服务。
+
 # admin界面
 
 在http模式下，直接访问代理端口，可以看到当前工作中的所有msocks链接和其中承载的tcp链接。

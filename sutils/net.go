@@ -11,6 +11,11 @@ type Dialer interface {
 	Dial(string, string) (net.Conn, error)
 }
 
+type TimeoutDialer interface {
+	Dialer
+	DialTimeout(string, string, time.Duration) (net.Conn, error)
+}
+
 type TcpDialer struct {
 }
 
@@ -22,7 +27,7 @@ func (td *TcpDialer) DialTimeout(network, address string, timeout time.Duration)
 	return net.DialTimeout(network, address, timeout)
 }
 
-var DefaultTcpDialer = &TcpDialer{}
+var DefaultTcpDialer TimeoutDialer = &TcpDialer{}
 
 type Tcp4Dialer struct {
 }
@@ -35,7 +40,7 @@ func (td *Tcp4Dialer) DialTimeout(network, address string, timeout time.Duration
 	return net.DialTimeout("tcp4", address, timeout)
 }
 
-var DefaultTcp4Dialer = &Tcp4Dialer{}
+var DefaultTcp4Dialer TimeoutDialer = &Tcp4Dialer{}
 
 type Lookuper interface {
 	LookupIP(host string) (addrs []net.IP, err error)
@@ -48,7 +53,7 @@ func (n *NetLookupIP) LookupIP(host string) (addrs []net.IP, err error) {
 	return net.LookupIP(host)
 }
 
-var DefaultLookuper Lookuper
+var DefaultLookuper Lookuper = &NetLookupIP{}
 
 func init() {
 	conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")

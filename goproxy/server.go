@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
-	"github.com/shell909090/goproxy/msocks"
 	"github.com/shell909090/goproxy/sutils"
 )
 
@@ -55,20 +55,16 @@ func run_server(basecfg *Config) (err error) {
 		return
 	}
 
-	var dialer sutils.Dialer = sutils.DefaultTcpDialer
 	if cfg.ForceIPv4 {
 		logger.Info("force ipv4 dailer.")
-		dialer = sutils.DefaultTcp4Dialer
+		sutils.DefaultTcpDialer = sutils.DefaultTcp4Dialer
 	}
 
-	svr, err := msocks.NewServer(cfg.Auth, dialer)
-	if err != nil {
-		return
-	}
+	svr := connpool.NewServer(cfg.Auth)
 
 	if cfg.AdminIface != "" {
 		mux := http.NewServeMux()
-		NewMsocksManager(svr.SessionPool).Register(mux)
+		svr.SessionPool.Register(mux)
 		go httpserver(cfg.AdminIface, mux)
 	}
 

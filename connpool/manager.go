@@ -1,12 +1,10 @@
-package main
+package connpool
 
 import (
 	"fmt"
 	"net/http"
-	"net/http/pprof"
 	"text/template"
 
-	"github.com/shell909090/goproxy/msocks"
 	"github.com/shell909090/goproxy/sutils"
 )
 
@@ -99,43 +97,22 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+
 	tmpl_addr, err = template.New("address").Parse(str_addrs)
 	if err != nil {
 		panic(err)
 	}
 }
 
-type MsocksManager struct {
-	sp *msocks.SessionPool
-}
-
-func NewMsocksManager(sp *msocks.SessionPool) (mm *MsocksManager) {
-	mm = &MsocksManager{
-		sp: sp,
-	}
-	return
-}
-
-func (mm *MsocksManager) Register(mux *http.ServeMux) {
-	mux.HandleFunc("/", mm.HandlerMain)
-	mux.HandleFunc("/lookup", mm.HandlerLookup)
-	mux.HandleFunc("/cutoff", mm.HandlerCutoff)
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-}
-
-func (mm *MsocksManager) HandlerMain(w http.ResponseWriter, req *http.Request) {
-	err := tmpl_sess.Execute(w, mm.sp)
+func (sp *SessionPool) HandlerMain(w http.ResponseWriter, req *http.Request) {
+	err := tmpl_sess.Execute(w, sp)
 	if err != nil {
 		logger.Error("%s", err)
 	}
 	return
 }
 
-func (mm *MsocksManager) HandlerLookup(w http.ResponseWriter, req *http.Request) {
+func HandlerLookup(w http.ResponseWriter, req *http.Request) {
 	q := req.URL.Query()
 	hosts, ok := q["host"]
 	if !ok {
@@ -158,7 +135,7 @@ func (mm *MsocksManager) HandlerLookup(w http.ResponseWriter, req *http.Request)
 	return
 }
 
-func (mm *MsocksManager) HandlerCutoff(w http.ResponseWriter, req *http.Request) {
-	mm.sp.CutAll()
+func (sp *SessionPool) HandlerCutoff(w http.ResponseWriter, req *http.Request) {
+	sp.CutAll()
 	return
 }

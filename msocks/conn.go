@@ -90,7 +90,7 @@ func (c *Conn) SendSynAndWait() (err error) {
 	fb := NewFrameSyn(c.streamid, c.Network, c.Address)
 	err = c.sess.SendFrame(fb)
 	if err != nil {
-		log.Error("%s", err)
+		logger.Error("%s", err)
 		go c.Final()
 		return
 	}
@@ -98,14 +98,14 @@ func (c *Conn) SendSynAndWait() (err error) {
 	errno := RecvWithTimeout(c.ch_syn, DIAL_TIMEOUT*time.Second)
 
 	if errno != ERR_NONE {
-		log.Error("remote connect %s failed for %d.", c.String(), errno)
+		logger.Error("remote connect %s failed for %d.", c.String(), errno)
 		go c.Final()
 	} else {
 		err = c.CheckAndSetStatus(ST_SYN_SENT, ST_EST)
 		if err != nil {
 			return
 		}
-		log.Notice("%s connected: %s => %s.", c.Network, c.String(), c.Address)
+		logger.Notice("%s connected: %s => %s.", c.Network, c.String(), c.Address)
 	}
 
 	c.ch_syn = nil
@@ -115,11 +115,11 @@ func (c *Conn) SendSynAndWait() (err error) {
 func (c *Conn) Final() {
 	err := c.sess.RemovePort(c.streamid)
 	if err != nil {
-		log.Error("%s", err)
+		logger.Error("%s", err)
 		return
 	}
 
-	log.Notice("%s final.", c.String())
+	logger.Notice("%s final.", c.String())
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -131,24 +131,24 @@ func (c *Conn) Final() {
 }
 
 func (c *Conn) Close() (err error) {
-	log.Info("call Close %s.", c.String())
+	logger.Info("call Close %s.", c.String())
 
 	c.lock.Lock()
 	switch c.status {
 	case ST_UNKNOWN, ST_FIN_WAIT:
 		// maybe call close twice
 		c.lock.Unlock()
-		log.Error("unexpected status %d, maybe try to close a closed conn.", c.status)
+		logger.Error("unexpected status %d, maybe try to close a closed conn.", c.status)
 		return
 	case ST_EST:
 		c.status = ST_FIN_WAIT
 		c.lock.Unlock()
-		log.Info("%s closed from local.", c.String())
+		logger.Info("%s closed from local.", c.String())
 
 		fb := NewFrameFin(c.streamid)
 		err = c.sender.SendFrame(fb)
 		if err != nil {
-			log.Info("%s", err)
+			logger.Info("%s", err)
 			return
 		}
 	case ST_CLOSE_WAIT:
@@ -157,14 +157,14 @@ func (c *Conn) Close() (err error) {
 		fb := NewFrameFin(c.streamid)
 		err = c.sender.SendFrame(fb)
 		if err != nil {
-			log.Info("%s", err)
+			logger.Info("%s", err)
 			return
 		}
 		go c.Final()
 	default:
 		c.lock.Unlock()
 		err = ErrUnknownState
-		log.Error("%s", err.Error())
+		logger.Error("%s", err.Error())
 		return
 	}
 	return
@@ -174,10 +174,10 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	switch ft := f.(type) {
 	default:
 		err = ErrUnexpectedPkg
-		log.Error("%s", err)
+		logger.Error("%s", err)
 		err = c.Close()
 		if err != nil {
-			log.Error("%s", err.Error())
+			logger.Error("%s", err.Error())
 		}
 		return
 	case *FrameResult:
@@ -189,7 +189,7 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	case *FrameFin:
 		return c.InFin(ft)
 	case *FrameRst:
-		log.Debug("reset %s.", c.String())
+		logger.Debug("reset %s.", c.String())
 		go c.Final()
 	}
 	return
@@ -200,7 +200,7 @@ func (c *Conn) InConnect(errno uint32) (err error) {
 	if c.status != ST_SYN_SENT {
 		c.lock.Unlock()
 		err = ErrNotSyn
-		log.Error("%s", err.Error())
+		logger.Error("%s", err.Error())
 		return
 	}
 	c.lock.Unlock()
@@ -215,7 +215,7 @@ func (c *Conn) InConnect(errno uint32) (err error) {
 func (c *Conn) InData(ft *FrameData) (err error) {
 	atomic.AddInt32(&c.rbufsize, int32(len(ft.Data)))
 	c.rqueue.Push(ft.Data)
-	log.Debug("%s recved %d bytes, rbufsize is %d bytes.",
+	logger.Debug("%s recved %d bytes, rbufsize is %d bytes.",
 		c.String(), len(ft.Data), atomic.LoadInt32(&c.rbufsize))
 	return
 }
@@ -226,7 +226,7 @@ func (c *Conn) InWnd(ft *FrameWnd) (err error) {
 		panic("wbufsize < 0")
 	}
 	c.wev.Signal()
-	log.Debug("%s remote readed %d, write buffer size: %d.",
+	logger.Debug("%s remote readed %d, write buffer size: %d.",
 		c.String(), ft.Window, atomic.LoadInt32(&c.wbufsize))
 	return nil
 }
@@ -244,7 +244,7 @@ func (c *Conn) InFin(ft *FrameFin) (err error) {
 		// wait reader to close
 		c.status = ST_CLOSE_WAIT
 		c.lock.Unlock()
-		log.Info("%s closed from remote.", c.String())
+		logger.Info("%s closed from remote.", c.String())
 		return
 	case ST_FIN_WAIT:
 		c.lock.Unlock()
@@ -256,7 +256,7 @@ func (c *Conn) InFin(ft *FrameFin) (err error) {
 		return
 	default: // error
 		c.lock.Unlock()
-		log.Error("unknown status: %d", c.status)
+		logger.Error("unknown status: %d", c.status)
 		return ErrFinState
 	}
 	return
@@ -313,7 +313,7 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 	fb := NewFrameWnd(c.streamid, uint32(n))
 	err = c.sender.SendFrame(fb)
 	if err != nil {
-		log.Error("%s", err)
+		logger.Error("%s", err)
 	}
 	return
 }
@@ -335,15 +335,15 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 		err = c.writeSlice(data[:size])
 
 		if err != nil {
-			log.Error("%s", err)
+			logger.Error("%s", err)
 			return
 		}
-		log.Debug("%s send chunk size %d at %d.", c.String(), size, n)
+		logger.Debug("%s send chunk size %d at %d.", c.String(), size, n)
 
 		data = data[size:]
 		n += int(size)
 	}
-	log.Info("%s sent %d bytes.", c.String(), n)
+	logger.Info("%s sent %d bytes.", c.String(), n)
 	return
 }
 
@@ -351,11 +351,11 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 	f := NewFrameData(c.streamid, data)
 
 	if c.status != ST_EST && c.status != ST_CLOSE_WAIT {
-		log.Error("status %d found in write slice", c.status)
+		logger.Error("status %d found in write slice", c.status)
 		return ErrState
 	}
 
-	log.Debug("write buffer size: %d, write len: %d",
+	logger.Debug("write buffer size: %d, write len: %d",
 		atomic.LoadInt32(&c.wbufsize), len(data))
 	for atomic.LoadInt32(&c.wbufsize)+int32(len(data)) > WINDOWSIZE {
 		// this may cause block. maybe signal will be lost.
@@ -364,7 +364,7 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 
 	err = c.sender.SendFrame(f)
 	if err != nil {
-		log.Info("%s", err)
+		logger.Info("%s", err)
 		return
 	}
 	atomic.AddInt32(&c.wbufsize, int32(len(data)))
@@ -409,7 +409,7 @@ func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
 	defer c.lock.Unlock()
 	if c.status != old {
 		err = ErrState
-		log.Error("%s", err.Error())
+		logger.Error("%s", err.Error())
 		return
 	}
 	c.status = new
