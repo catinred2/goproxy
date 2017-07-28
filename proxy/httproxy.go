@@ -76,7 +76,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	resp, err := p.transport.RoundTrip(req)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

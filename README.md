@@ -305,6 +305,7 @@ tar包内包含主程序，routes.list.gz示例。没有config.json示例。因�
 
 * Support edns. Use client IP as edns source, so answer may be more accurate.
 * Found out why connection always blocked.
+* Enable and Disable servers
 * 增加dns对外服务？（其实可以用udp端口映射来完成）
 * Upgrade IV exchange mode.
   * Maybe mix IV with junk data will helpful, size of junk data can be defined in config file.

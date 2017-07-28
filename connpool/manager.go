@@ -107,7 +107,7 @@ func init() {
 func (sp *SessionPool) HandlerMain(w http.ResponseWriter, req *http.Request) {
 	err := tmpl_sess.Execute(w, sp)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 	}
 	return
 }
@@ -130,7 +130,7 @@ func HandlerLookup(w http.ResponseWriter, req *http.Request) {
 
 	err = tmpl_addr.Execute(w, addrs)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 	}
 	return
 }

@@ -90,22 +90,22 @@ func (c *Conn) SendSynAndWait() (err error) {
 	fb := NewFrameSyn(c.streamid, c.Network, c.Address)
 	err = c.sess.SendFrame(fb)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 		go c.Final()
 		return
 	}
 
-	errno := RecvWithTimeout(c.ch_syn, DIAL_TIMEOUT*time.Second)
+	errno := RecvWithTimeout(c.ch_syn, DIAL_TIMEOUT*time.Millisecond)
 
 	if errno != ERR_NONE {
-		logger.Error("remote connect %s failed for %d.", c.String(), errno)
+		logger.Errorf("remote connect %s failed for %d.", c.String(), errno)
 		go c.Final()
 	} else {
 		err = c.CheckAndSetStatus(ST_SYN_SENT, ST_EST)
 		if err != nil {
 			return
 		}
-		logger.Notice("%s connected: %s => %s.", c.Network, c.String(), c.Address)
+		logger.Noticef("%s connected: %s => %s.", c.Network, c.String(), c.Address)
 	}
 
 	c.ch_syn = nil
@@ -115,11 +115,11 @@ func (c *Conn) SendSynAndWait() (err error) {
 func (c *Conn) Final() {
 	err := c.sess.RemovePort(c.streamid)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 		return
 	}
 
-	logger.Notice("%s final.", c.String())
+	logger.Noticef("%s final.", c.String())
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -131,24 +131,26 @@ func (c *Conn) Final() {
 }
 
 func (c *Conn) Close() (err error) {
-	logger.Info("call Close %s.", c.String())
+	logger.Infof("call Close %s.", c.String())
 
 	c.lock.Lock()
 	switch c.status {
 	case ST_UNKNOWN, ST_FIN_WAIT:
 		// maybe call close twice
 		c.lock.Unlock()
-		logger.Error("unexpected status %d, maybe try to close a closed conn.", c.status)
+		logger.Errorf(
+			"unexpected status %d, maybe try to close a closed conn.",
+			c.status)
 		return
 	case ST_EST:
 		c.status = ST_FIN_WAIT
 		c.lock.Unlock()
-		logger.Info("%s closed from local.", c.String())
+		logger.Infof("%s closed from local.", c.String())
 
 		fb := NewFrameFin(c.streamid)
 		err = c.sender.SendFrame(fb)
 		if err != nil {
-			logger.Info("%s", err)
+			logger.Info(err.Error())
 			return
 		}
 	case ST_CLOSE_WAIT:
@@ -157,14 +159,14 @@ func (c *Conn) Close() (err error) {
 		fb := NewFrameFin(c.streamid)
 		err = c.sender.SendFrame(fb)
 		if err != nil {
-			logger.Info("%s", err)
+			logger.Info(err.Error())
 			return
 		}
 		go c.Final()
 	default:
 		c.lock.Unlock()
 		err = ErrUnknownState
-		logger.Error("%s", err.Error())
+		logger.Error(err.Error())
 		return
 	}
 	return
@@ -174,10 +176,10 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	switch ft := f.(type) {
 	default:
 		err = ErrUnexpectedPkg
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 		err = c.Close()
 		if err != nil {
-			logger.Error("%s", err.Error())
+			logger.Error(err.Error())
 		}
 		return
 	case *FrameResult:
@@ -189,7 +191,7 @@ func (c *Conn) SendFrame(f Frame) (err error) {
 	case *FrameFin:
 		return c.InFin(ft)
 	case *FrameRst:
-		logger.Debug("reset %s.", c.String())
+		logger.Debugf("reset %s.", c.String())
 		go c.Final()
 	}
 	return
@@ -200,7 +202,7 @@ func (c *Conn) InConnect(errno uint32) (err error) {
 	if c.status != ST_SYN_SENT {
 		c.lock.Unlock()
 		err = ErrNotSyn
-		logger.Error("%s", err.Error())
+		logger.Error(err.Error())
 		return
 	}
 	c.lock.Unlock()
@@ -215,7 +217,7 @@ func (c *Conn) InConnect(errno uint32) (err error) {
 func (c *Conn) InData(ft *FrameData) (err error) {
 	atomic.AddInt32(&c.rbufsize, int32(len(ft.Data)))
 	c.rqueue.Push(ft.Data)
-	logger.Debug("%s recved %d bytes, rbufsize is %d bytes.",
+	logger.Debugf("%s recved %d bytes, rbufsize is %d bytes.",
 		c.String(), len(ft.Data), atomic.LoadInt32(&c.rbufsize))
 	return
 }
@@ -226,7 +228,7 @@ func (c *Conn) InWnd(ft *FrameWnd) (err error) {
 		panic("wbufsize < 0")
 	}
 	c.wev.Signal()
-	logger.Debug("%s remote readed %d, write buffer size: %d.",
+	logger.Debugf("%s remote readed %d, write buffer size: %d.",
 		c.String(), ft.Window, atomic.LoadInt32(&c.wbufsize))
 	return nil
 }
@@ -244,7 +246,7 @@ func (c *Conn) InFin(ft *FrameFin) (err error) {
 		// wait reader to close
 		c.status = ST_CLOSE_WAIT
 		c.lock.Unlock()
-		logger.Info("%s closed from remote.", c.String())
+		logger.Infof("%s closed from remote.", c.String())
 		return
 	case ST_FIN_WAIT:
 		c.lock.Unlock()
@@ -256,7 +258,7 @@ func (c *Conn) InFin(ft *FrameFin) (err error) {
 		return
 	default: // error
 		c.lock.Unlock()
-		logger.Error("unknown status: %d", c.status)
+		logger.Errorf("unknown status: %d", c.status)
 		return ErrFinState
 	}
 	return
@@ -313,7 +315,7 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 	fb := NewFrameWnd(c.streamid, uint32(n))
 	err = c.sender.SendFrame(fb)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 	}
 	return
 }
@@ -335,15 +337,15 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 		err = c.writeSlice(data[:size])
 
 		if err != nil {
-			logger.Error("%s", err)
+			logger.Error(err.Error())
 			return
 		}
-		logger.Debug("%s send chunk size %d at %d.", c.String(), size, n)
+		logger.Debugf("%s send chunk size %d at %d.", c.String(), size, n)
 
 		data = data[size:]
 		n += int(size)
 	}
-	logger.Info("%s sent %d bytes.", c.String(), n)
+	logger.Infof("%s sent %d bytes.", c.String(), n)
 	return
 }
 
@@ -351,11 +353,11 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 	f := NewFrameData(c.streamid, data)
 
 	if c.status != ST_EST && c.status != ST_CLOSE_WAIT {
-		logger.Error("status %d found in write slice", c.status)
+		logger.Errorf("status %d found in write slice", c.status)
 		return ErrState
 	}
 
-	logger.Debug("write buffer size: %d, write len: %d",
+	logger.Debugf("write buffer size: %d, write len: %d",
 		atomic.LoadInt32(&c.wbufsize), len(data))
 	for atomic.LoadInt32(&c.wbufsize)+int32(len(data)) > WINDOWSIZE {
 		// this may cause block. maybe signal will be lost.
@@ -364,7 +366,7 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 
 	err = c.sender.SendFrame(f)
 	if err != nil {
-		logger.Info("%s", err)
+		logger.Info(err.Error())
 		return
 	}
 	atomic.AddInt32(&c.wbufsize, int32(len(data)))
@@ -409,7 +411,7 @@ func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
 	defer c.lock.Unlock()
 	if c.status != old {
 		err = ErrState
-		logger.Error("%s", err.Error())
+		logger.Error(err.Error())
 		return
 	}
 	c.status = new

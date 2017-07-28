@@ -1,20 +1,51 @@
 package msocks
 
-import "io"
+import (
+	"io"
+	"net"
+	"time"
+)
 
-type Server struct {
-	userpass map[string]string
+type Listener struct {
+	net.Listener
+	auth map[string]string
 }
 
-func NewServer(auth map[string]string) (ms *Server) {
-	ms = &Server{
-		userpass: auth,
+func NewListener(raw net.Listener, auth *map[string]string) (listener net.Listener) {
+	listener = &Listener{
+		Listener: raw,
+		auth:     *auth,
 	}
 
 	return
 }
 
-func (ms *Server) OnAuth(stream io.ReadWriteCloser) (err error) {
+func (l *Listener) Accept() (conn net.Conn, err error) {
+	conn, err = l.Listener.Accept()
+	if err != nil {
+		return
+	}
+
+	logger.Noticef("connection come from: %s => %s.",
+		conn.RemoteAddr(), conn.LocalAddr())
+
+	ti := time.AfterFunc(AUTH_TIMEOUT*time.Millisecond, func() {
+		logger.Noticef(ErrAuthFailed.Error(), conn.RemoteAddr())
+		conn.Close()
+	})
+
+	err = l.onAuth(conn)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
+	ti.Stop()
+
+	return
+}
+
+func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 	f, err := ReadFrame(stream)
 	if err != nil {
 		return
@@ -26,10 +57,12 @@ func (ms *Server) OnAuth(stream io.ReadWriteCloser) (err error) {
 	}
 
 	if ft.Username != "" || ft.Password != "" {
-		logger.Notice("auth with username: %s, password: %s.", ft.Username, ft.Password)
+		logger.Noticef("auth with username: %s, password: %s.",
+			ft.Username, ft.Password)
 	}
-	if ms.userpass != nil {
-		password1, ok := ms.userpass[ft.Username]
+
+	if l.auth != nil {
+		password1, ok := l.auth[ft.Username]
 		if !ok || (ft.Password != password1) {
 			fb := NewFrameResult(ft.Streamid, ERR_AUTH)
 			buf, err := fb.Packed()

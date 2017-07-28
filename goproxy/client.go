@@ -7,6 +7,7 @@ import (
 	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
 	"github.com/shell909090/goproxy/ipfilter"
+	"github.com/shell909090/goproxy/msocks"
 	"github.com/shell909090/goproxy/portmapper"
 	"github.com/shell909090/goproxy/proxy"
 	"github.com/shell909090/goproxy/sutils"
@@ -87,7 +88,8 @@ func run_httproxy(basecfg *Config) (err error) {
 		if err != nil {
 			return
 		}
-		sp.AddSessionFactory(dialer, srv.Server, srv.Username, srv.Password)
+		dc := msocks.NewDialerCreator(dialer, srv.Server, srv.Username, srv.Password)
+		sp.AddDialerCreator(dc)
 	}
 
 	dialer = sp
@@ -116,5 +118,6 @@ func run_httproxy(basecfg *Config) (err error) {
 		go portmapper.CreatePortmap(pm, dialer)
 	}
 
-	return http.ListenAndServe(cfg.Listen, proxy.NewProxy(dialer, cfg.HttpUser, cfg.HttpPassword))
+	p := proxy.NewProxy(dialer, cfg.HttpUser, cfg.HttpPassword)
+	return http.ListenAndServe(cfg.Listen, p)
 }

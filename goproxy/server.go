@@ -60,7 +60,7 @@ func run_server(basecfg *Config) (err error) {
 		sutils.DefaultTcpDialer = sutils.DefaultTcp4Dialer
 	}
 
-	svr := connpool.NewServer(cfg.Auth)
+	svr := connpool.NewServer(&cfg.Auth)
 
 	if cfg.AdminIface != "" {
 		mux := http.NewServeMux()

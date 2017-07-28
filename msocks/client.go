@@ -7,42 +7,44 @@ import (
 	"github.com/shell909090/goproxy/sutils"
 )
 
-type SessionFactory struct {
+type DialerCreator struct {
 	sutils.Dialer
 	serveraddr string
 	username   string
 	password   string
 }
 
-func NewSessionFactory(dialer sutils.Dialer, serveraddr, username, password string) (sf *SessionFactory) {
-	return &SessionFactory{
-		Dialer:     dialer,
+func NewDialerCreator(raw sutils.Dialer, serveraddr, username, password string) (dc *DialerCreator) {
+	return &DialerCreator{
+		Dialer:     raw,
 		serveraddr: serveraddr,
 		username:   username,
 		password:   password,
 	}
 }
 
-func (sf *SessionFactory) CreateSession() (sess *Session, err error) {
-	logger.Notice("msocks try to connect %s.", sf.serveraddr)
+func (dc *DialerCreator) Create() (sess *Session, err error) {
+	logger.Noticef("msocks try to connect %s.", dc.serveraddr)
 
-	conn, err := sf.Dialer.Dial("tcp4", sf.serveraddr)
+	conn, err := dc.Dialer.Dial("tcp4", dc.serveraddr)
 	if err != nil {
 		return
 	}
 
-	ti := time.AfterFunc(AUTH_TIMEOUT*time.Second, func() {
-		logger.Notice(ErrAuthFailed.Error(), conn.RemoteAddr())
+	ti := time.AfterFunc(AUTH_TIMEOUT*time.Millisecond, func() {
+		logger.Noticef(ErrAuthFailed.Error(), conn.RemoteAddr())
 		conn.Close()
 	})
 	defer func() {
 		ti.Stop()
 	}()
 
-	if sf.username != "" || sf.password != "" {
-		logger.Notice("auth with username: %s, password: %s.", sf.username, sf.password)
+	if dc.username != "" || dc.password != "" {
+		logger.Noticef("auth with username: %s, password: %s.",
+			dc.username, dc.password)
 	}
-	fb := NewFrameAuth(0, sf.username, sf.password)
+
+	fb := NewFrameAuth(0, dc.username, dc.password)
 	buf, err := fb.Packed()
 	if err != nil {
 		return
@@ -69,7 +71,7 @@ func (sf *SessionFactory) CreateSession() (sess *Session, err error) {
 	}
 
 	logger.Notice("auth passed.")
-	sess = NewSession(conn)
-	sess.next_id = 0
+
+	sess = NewSession(conn, 0)
 	return
 }
