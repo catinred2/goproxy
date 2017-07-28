@@ -12,6 +12,7 @@ key
 *.prof
 
 debian/*.debhelper
+debian/debhelper-build-stamp
 debian/files
 debian/goproxy.substvars
 debian/goproxy/
