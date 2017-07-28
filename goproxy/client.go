@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"net/http"
 	"strings"
 
@@ -63,38 +61,14 @@ func httpserver(addr string, handler http.Handler) {
 }
 
 func (sd *ServerDefine) MakeDialer() (dialer sutils.Dialer, err error) {
-	var RootCAs *x509.CertPool
-	var cert tls.Certificate
-
 	if strings.ToLower(sd.CryptMode) == "tls" {
-		cert, err = tls.LoadX509KeyPair(sd.CertFile, sd.CertKeyFile)
-		if err != nil {
-			return
-		}
-
-		config := &tls.Config{
-			Certificates: []tls.Certificate{cert},
-		}
-
-		if sd.RootCAs != "" {
-			RootCAs, err = loadCertPool(sd.RootCAs)
-			if err != nil {
-				return
-			}
-			config.RootCAs = RootCAs
-		}
-
-		dialer = &TlsDialer{config: config}
-		return
+		dialer, err = NewTlsDialer(sd.CertFile, sd.CertKeyFile, sd.RootCAs)
 	} else {
 		cipher := sd.Cipher
 		if cipher == "" {
-			cipher = sd.Cipher
+			cipher = "aes"
 		}
 		dialer, err = cryptconn.NewDialer(sutils.DefaultTcpDialer, cipher, sd.Key)
-		if err != nil {
-			return
-		}
 	}
 	return
 }

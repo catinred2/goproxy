@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"net"
 	"net/http"
 	"strings"
@@ -36,31 +34,6 @@ func LoadServerConfig(basecfg *Config) (cfg *ServerConfig, err error) {
 	return
 }
 
-func listener_use_tls(raw net.Listener, cfg *ServerConfig) (wrapped net.Listener, err error) {
-	var RootCAs *x509.CertPool
-
-	cert, err := tls.LoadX509KeyPair(cfg.CertFile, cfg.CertKeyFile)
-	if err != nil {
-		return
-	}
-
-	config := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	}
-
-	if cfg.RootCAs != "" {
-		RootCAs, err = loadCertPool(cfg.RootCAs)
-		if err != nil {
-			return
-		}
-		config.ClientAuth = tls.RequireAndVerifyClientCert
-		config.ClientCAs = RootCAs
-	}
-
-	wrapped = tls.NewListener(raw, config)
-	return
-}
-
 func run_server(basecfg *Config) (err error) {
 	cfg, err := LoadServerConfig(basecfg)
 	if err != nil {
@@ -73,7 +46,8 @@ func run_server(basecfg *Config) (err error) {
 	}
 
 	if strings.ToLower(cfg.CryptMode) == "tls" {
-		listener, err = listener_use_tls(listener, cfg)
+		listener, err = TlsListener(
+			listener, cfg.CertFile, cfg.CertKeyFile, cfg.RootCAs)
 	} else {
 		listener, err = cryptconn.NewListener(listener, cfg.Cipher, cfg.Key)
 	}

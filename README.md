@@ -104,7 +104,7 @@ http模式运行在本地，需要一个境外的server服务器做支撑，对�
 * rootcas: 字符串，只在tls模式下生效。以回车分割的多行字符串，每行一个文件路径，表示客户认可的服务器端ca根。不设定的话使用系统根证书设定。
 * certfile: 字符串，只在tls模式下生效。客户端使用的证书文件。
 * certkeyfile: 字符串，只在tls模式下生效。客户端使用的证书密钥。
-* cipher: 加密算法，可以为aes/des/tripledes。如果未定义，则以config层中的配置为准。
+* cipher: 加密算法，可以为aes/des/tripledes。默认为aes。
 * key: 密钥。16个随机数据base64后的结果。
 * username: 连接用户名。
 * password: 连接密码。
@@ -297,6 +297,8 @@ tar包内包含主程序，routes.list.gz示例。没有config.json示例。因�
 
 # TODO
 
+* Support edns. Use client IP as edns source, so answer may be more accurate.
+* Found out why connection always blocked.
 * 增加dns对外服务？（其实可以用udp端口映射来完成）
 * Upgrade IV exchange mode.
   * Maybe mix IV with junk data will helpful, size of junk data can be defined in config file.
