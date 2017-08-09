@@ -14,8 +14,6 @@ import (
 
 var logger = logging.MustGetLogger("")
 
-const TypeInternal = "internal"
-
 var (
 	ConfigFile string
 )
@@ -94,8 +92,18 @@ func main() {
 		return
 	}
 
-	if len(cfg.DnsAddrs) > 0 && cfg.DnsNet != TypeInternal {
-		sutils.DefaultLookuper = sutils.NewDnsLookup(cfg.DnsAddrs, cfg.DnsNet)
+	switch cfg.DnsNet {
+	case "internal":
+	case "https":
+		sutils.DefaultLookuper, err = sutils.NewGoogleHttpsDns()
+		if err != nil {
+			return
+		}
+	case "udp", "tcp":
+		if len(cfg.DnsAddrs) > 0 {
+			sutils.DefaultLookuper = sutils.NewDnsLookuper(
+				cfg.DnsAddrs, cfg.DnsNet)
+		}
 	}
 
 	switch cfg.Mode {

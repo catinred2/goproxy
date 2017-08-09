@@ -6,21 +6,39 @@ import (
 	"github.com/miekg/dns"
 )
 
-type DnsLookup struct {
+func DebugDNS(quiz, resp *dns.Msg) {
+	straddr := ""
+	for _, a := range resp.Answer {
+		switch ta := a.(type) {
+		case *dns.A:
+			straddr += ta.A.String() + ","
+		case *dns.AAAA:
+			straddr += ta.AAAA.String() + ","
+		}
+	}
+	logger.Infof("dns result for %s is %s.", quiz.Question[0].Name, straddr)
+	return
+}
+
+type DnsLookuper struct {
+	Lookuper
 	Servers []string
 	c       *dns.Client
 }
 
-func NewDnsLookup(Servers []string, dnsnet string) (d *DnsLookup) {
-	d = &DnsLookup{
-		Servers: Servers,
+func NewDnsLookuper(servers []string, dnsnet string) (d *DnsLookuper) {
+	d = &DnsLookuper{
+		Servers: servers,
+		c:       &dns.Client{},
 	}
-	d.c = new(dns.Client)
+	d.Lookuper = &ExchangerToLookuper{
+		Exchanger: d,
+	}
 	d.c.Net = dnsnet
 	return d
 }
 
-func (d *DnsLookup) Exchange(m *dns.Msg) (r *dns.Msg, err error) {
+func (d *DnsLookuper) Exchange(m *dns.Msg) (r *dns.Msg, err error) {
 	for _, srv := range d.Servers {
 		r, _, err = d.c.Exchange(m, srv)
 		if err != nil {
@@ -33,19 +51,27 @@ func (d *DnsLookup) Exchange(m *dns.Msg) (r *dns.Msg, err error) {
 	return
 }
 
-func (d *DnsLookup) query(host string, t uint16, as []net.IP) (addrs []net.IP, err error) {
-	addrs = as
+type ExchangerToLookuper struct {
+	Exchanger
+}
 
-	m := new(dns.Msg)
-	m.SetQuestion(dns.Fqdn(host), t)
-	m.RecursionDesired = true
+func (e2l *ExchangerToLookuper) query(host string, t uint16, addrs_in []net.IP) (addrs []net.IP, err error) {
+	addrs = addrs_in
 
-	r, err := d.Exchange(m)
+	quiz := new(dns.Msg)
+	quiz.SetQuestion(dns.Fqdn(host), t)
+	quiz.RecursionDesired = true
+
+	resp, err := e2l.Exchanger.Exchange(quiz)
 	if err != nil {
 		return
 	}
 
-	for _, a := range r.Answer {
+	if DEBUGDNS {
+		DebugDNS(quiz, resp)
+	}
+
+	for _, a := range resp.Answer {
 		switch ta := a.(type) {
 		case *dns.A:
 			addrs = append(addrs, ta.A)
@@ -56,11 +82,17 @@ func (d *DnsLookup) query(host string, t uint16, as []net.IP) (addrs []net.IP, e
 	return
 }
 
-func (d *DnsLookup) LookupIP(host string) (addrs []net.IP, err error) {
-	addrs, err = d.query(host, dns.TypeA, addrs)
+func (e2l *ExchangerToLookuper) LookupIP(host string) (addrs []net.IP, err error) {
+	ip := net.ParseIP(host)
+	if ip != nil {
+		return []net.IP{ip}, nil
+	}
+
+	addrs, err = e2l.query(host, dns.TypeA, addrs)
 	if err != nil {
 		return
 	}
-	addrs, err = d.query(host, dns.TypeAAAA, addrs)
+	// CAUTION: disabled ipv6
+	// addrs, err = e2l.query(host, dns.TypeAAAA, addrs)
 	return
 }

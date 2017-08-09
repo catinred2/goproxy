@@ -59,8 +59,10 @@ msocks协议最大的改进是增加了连接复用能力，这个功能允许�
 * logfile: log文件路径，留空表示输出到stdout。在deb包中建议留空，用init脚本的机制来生成日志文件。
 * loglevel: 日志级别，必须设定。支持EMERG/ALERT/CRIT/ERROR/WARNING/NOTICE/INFO/DEBUG。
 * adminiface: 服务器端的控制端口，可以看到服务器端有多少个连接，分别是谁。
+* dnsnet: dns的网络模式，默认为udp模式，设定为internal采用内置模式，设定为https采用google。
 * dnsaddrs: dns查询的目标地址列表。如不定义则采用系统自带的dns系统，会读取默认配置并使用。
-* dnsnet: dns的网络模式，默认为udp模式，设定为tcp可以采用tcp模式，设定为internal采用内置模式。
+
+internal模式下，使用msocks来查询远程数据（具体命中到哪个zone不确定）。https模式下，使用google dns-over-https来查询数据。https模式带有edns client subnet功能，会自动修正国内地址。
 
 ## server模式
 
