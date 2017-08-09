@@ -5,6 +5,12 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	logging "github.com/op/go-logging"
+)
+
+var (
+	logger   = logging.MustGetLogger("sutils")
+	DEBUGDNS = true
 )
 
 type Dialer interface {
@@ -55,6 +61,10 @@ func (n *NetLookupIP) LookupIP(host string) (addrs []net.IP, err error) {
 
 var DefaultLookuper Lookuper = &NetLookupIP{}
 
+type Exchanger interface {
+	Exchange(*dns.Msg) (*dns.Msg, error)
+}
+
 func init() {
 	conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
 	if err != nil {
@@ -66,5 +76,5 @@ func init() {
 		addrs = append(addrs, net.JoinHostPort(srv, conf.Port))
 	}
 
-	DefaultLookuper = NewDnsLookup(addrs, "")
+	DefaultLookuper = NewDnsLookuper(addrs, "")
 }

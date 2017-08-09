@@ -92,7 +92,7 @@ func run_httproxy(basecfg *Config) (err error) {
 
 	dialer = sp
 
-	if cfg.DnsNet == TypeInternal {
+	if cfg.DnsNet == "internal" {
 		sutils.DefaultLookuper = sp
 	}
 

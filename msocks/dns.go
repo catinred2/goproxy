@@ -8,69 +8,7 @@ import (
 	"github.com/shell909090/goproxy/sutils"
 )
 
-func MakeDnsFrame(host string, t uint16, streamid uint16) (req *dns.Msg, f Frame, err error) {
-	logger.Debug("make a dns query for %s.", host)
-
-	req = new(dns.Msg)
-	req.Id = dns.Id()
-	req.SetQuestion(dns.Fqdn(host), t)
-	req.RecursionDesired = true
-
-	b, err := req.Pack()
-	if err != nil {
-		return
-	}
-
-	f = NewFrameDns(streamid, b)
-	return
-}
-
-func DebugDNS(r *dns.Msg, name string) {
-	straddr := ""
-	for _, a := range r.Answer {
-		switch ta := a.(type) {
-		case *dns.A:
-			straddr += ta.A.String() + ","
-		case *dns.AAAA:
-			straddr += ta.AAAA.String() + ","
-		}
-	}
-	logger.Info("dns result for %s is %s.", name, straddr)
-	return
-}
-
-func ParseDnsFrame(f Frame, req *dns.Msg) (addrs []net.IP, err error) {
-	ft, ok := f.(*FrameDns)
-	if !ok {
-		return nil, ErrDnsMsgIllegal
-	}
-
-	res := new(dns.Msg)
-	err = res.Unpack(ft.Data)
-	if err != nil || !res.Response || res.Id != req.Id {
-		return nil, ErrDnsMsgIllegal
-	}
-
-	if DEBUGDNS {
-		DebugDNS(res, req.Question[0].Name)
-	}
-	for _, a := range res.Answer {
-		switch ta := a.(type) {
-		case *dns.A:
-			addrs = append(addrs, ta.A)
-		case *dns.AAAA:
-			addrs = append(addrs, ta.AAAA)
-		}
-	}
-	return
-}
-
-func (s *Session) LookupIP(host string) (addrs []net.IP, err error) {
-	ip := net.ParseIP(host)
-	if ip != nil {
-		return []net.IP{ip}, nil
-	}
-
+func (s *Session) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 	cfs := CreateChanFrameSender(0)
 	streamid, err := s.PutIntoNextId(&cfs)
 	if err != nil {
@@ -83,22 +21,32 @@ func (s *Session) LookupIP(host string) (addrs []net.IP, err error) {
 		}
 	}()
 
-	req, freq, err := MakeDnsFrame(host, dns.TypeA, streamid)
+	b, err := quiz.Pack()
+	if err != nil {
+		return
+	}
+	fquiz := NewFrameDns(streamid, b)
+
+	err = s.SendFrame(fquiz)
 	if err != nil {
 		return
 	}
 
-	err = s.SendFrame(freq)
+	ft, err := cfs.RecvWithTimeout(DNS_TIMEOUT * time.Second)
 	if err != nil {
 		return
 	}
 
-	fres, err := cfs.RecvWithTimeout(DNS_TIMEOUT * time.Second)
-	if err != nil {
-		return
+	fresp, ok := ft.(*FrameDns)
+	if !ok {
+		return nil, ErrDnsMsgIllegal
 	}
 
-	addrs, err = ParseDnsFrame(fres, req)
+	resp = &dns.Msg{}
+	err = resp.Unpack(fresp.Data)
+	if err != nil || !resp.Response || resp.Id != quiz.Id {
+		return nil, ErrDnsMsgIllegal
+	}
 	return
 }
 
@@ -116,19 +64,25 @@ func (s *Session) on_dns(ft *FrameDns) (err error) {
 	}
 
 	logger.Info("dns query for %s.", req.Question[0].Name)
-
-	d, ok := sutils.DefaultLookuper.(*sutils.DnsLookup)
-	if !ok {
-		return ErrNoDnsServer
+	if ipaddr, ok := s.conn.RemoteAddr().(*net.IPAddr); ok {
+		appendEdns0Subnet(req, ipaddr.IP)
 	}
-	res, err := d.Exchange(req)
+
+	xchg, ok := sutils.DefaultLookuper.(sutils.Exchanger)
+	if !ok {
+		err = ErrDnsLookuper
+		logger.Error("%s", err.Error())
+		return
+	}
+
+	res, err := xchg.Exchange(req)
 	if err != nil {
 		logger.Error("%s", err.Error())
 		return nil
 	}
 
-	if DEBUGDNS {
-		DebugDNS(res, req.Question[0].Name)
+	if sutils.DEBUGDNS {
+		sutils.DebugDNS(req, res)
 	}
 
 	// send response back from streamid
@@ -141,4 +95,37 @@ func (s *Session) on_dns(ft *FrameDns) (err error) {
 	fr := NewFrameDns(ft.GetStreamid(), b)
 	err = s.SendFrame(fr)
 	return
+}
+
+func appendEdns0Subnet(msg *dns.Msg, addr net.IP) {
+	newOpt := true
+	var o *dns.OPT
+	for _, v := range msg.Extra {
+		if v.Header().Rrtype == dns.TypeOPT {
+			o = v.(*dns.OPT)
+			newOpt = false
+			break
+		}
+	}
+	if o == nil {
+		o = new(dns.OPT)
+		o.Hdr.Name = "."
+		o.Hdr.Rrtype = dns.TypeOPT
+	}
+	e := &dns.EDNS0_SUBNET{
+		Code:        dns.EDNS0SUBNET,
+		SourceScope: 0,
+		Address:     addr,
+	}
+	if addr.To4() == nil {
+		e.Family = 2 // IP6
+		e.SourceNetmask = net.IPv6len * 8
+	} else {
+		e.Family = 1 // IP4
+		e.SourceNetmask = net.IPv4len * 8
+	}
+	o.Option = append(o.Option, e)
+	if newOpt {
+		msg.Extra = append(msg.Extra, o)
+	}
 }

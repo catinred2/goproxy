@@ -8,9 +8,12 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/shell909090/goproxy/sutils"
 )
 
 type Session struct {
+	*sutils.ExchangerToLookuper
 	wlock sync.Mutex
 	conn  net.Conn
 
@@ -31,6 +34,9 @@ func NewSession(conn net.Conn) (s *Session) {
 		ports:    make(map[uint16]FrameSender, 0),
 		Readcnt:  NewSpeedCounter(),
 		Writecnt: NewSpeedCounter(),
+	}
+	s.ExchangerToLookuper = &sutils.ExchangerToLookuper{
+		Exchanger: s,
 	}
 	logger.Notice("session %s created.", s.String())
 	return

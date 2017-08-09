@@ -17,7 +17,6 @@ const (
 	WINDOWSIZE = 4 * 1024 * 1024
 
 	SHRINK_TIME = 3
-	DEBUGDNS    = false
 )
 
 const (
@@ -43,6 +42,7 @@ var (
 	ErrChanClosed     = errors.New("chan closed.")
 	ErrDnsTimeOut     = errors.New("dns timeout.")
 	ErrDnsMsgIllegal  = errors.New("dns message illegal.")
+	ErrDnsLookuper    = errors.New("dns lookuper can't exchange.")
 	ErrNoDnsServer    = errors.New("no proper dns server.")
 )
 
