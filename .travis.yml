@@ -6,6 +6,7 @@ script: make build
 install:
   - go get github.com/op/go-logging
   - go get github.com/miekg/dns
+  - go get golang.org/x/net/http2
 
 notifications:
   email:
