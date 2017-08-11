@@ -47,6 +47,7 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 	return
 }
 
+// FIXME: Network, Address
 type Conn struct {
 	t        *Tunnel
 	slock    sync.Mutex
@@ -57,7 +58,7 @@ type Conn struct {
 	r_rest []byte
 	rqueue *Queue
 	wlock  sync.RWMutex
-	window uint32
+	window int32
 	wev    *sync.Cond
 }
 
@@ -65,10 +66,15 @@ func NewConn(t *Tunnel) (c *Conn) {
 	c = &Conn{
 		status: ST_UNKNOWN,
 		t:      t,
+		rqueue: NewQueue(),
 		window: WINDOWSIZE,
-		wev:    sync.NewCond(),
+		wev:    &sync.Cond{},
 	}
 	return
+}
+
+func (c *Conn) String() (s string) {
+	return fmt.Sprintf("%s(%d)", c.t.String(), c.streamid)
 }
 
 func (c *Conn) Connect(network, address string) (err error) {
@@ -109,15 +115,15 @@ func (c *Conn) Connect(network, address string) (err error) {
 	if err != nil {
 		return
 	}
-	logger.Noticef("%s connected: %s => %s.", c.Network, c.String(), c.Address)
+	logger.Infof("%s connected.", c.String())
 
 	c.ch_syn = nil
 	return
 }
 
 func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.slock.Lock()
+	defer c.slock.Unlock()
 	if c.status != old {
 		err = ErrState
 		logger.Error(err.Error())
@@ -128,8 +134,9 @@ func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
 }
 
 func (c *Conn) Read(data []byte) (n int, err error) {
-	c.rlock.Lock()
-	defer c.rlock.Unlock()
+	var v interface{}
+	// c.rlock.Lock()
+	// defer c.rlock.Unlock()
 
 	target := data[:]
 	for len(target) > 0 {
@@ -183,7 +190,7 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 		size := uint16(len(data))
 		// random size
 		if size > 24*1024 {
-			size = uint32(16*1024 + rand.Intn(16*1024))
+			size = uint16(16*1024 + rand.Intn(16*1024))
 		}
 
 		err = c.writeSlice(data[:size])
@@ -215,9 +222,8 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 	fdata.Data = data
 	fdata.FrameHeader.Length = uint16(len(data))
 
-	logger.Debugf("write window: %d, write len: %d",
-		atomic.LoadInt32(&c.window), len(data))
-	for atomic.LoadInt32(&c.window)-int32(len(data)) < 0 {
+	logger.Debugf("write data len: %d, window: %d", len(data), c.window)
+	for c.window-int32(len(data)) < 0 {
 		// just one goroutine could wait here.
 		c.wev.Wait()
 	}
@@ -228,7 +234,7 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 		return
 	}
 
-	atomic.AddInt32(&c.wbufsize, -int32(len(data)))
+	c.window -= int32(len(data))
 	return
 }
 
@@ -244,10 +250,7 @@ func (c *Conn) Close() (err error) {
 		c.status = ST_FIN_SENT
 	case ST_FIN_RECV:
 		c.status = ST_UNKNOWN
-		err = c.Final()
-		if err != nil {
-			return
-		}
+		c.Final()
 	default:
 		return ErrState
 	}
@@ -288,10 +291,7 @@ func (c *Conn) CloseRead() (err error) {
 		c.status = ST_FIN_RECV
 	case ST_FIN_SENT:
 		c.status = ST_UNKNOWN
-		err = c.Final()
-		if err != nil {
-			return
-		}
+		c.Final()
 	default:
 		return ErrState
 	}
@@ -336,12 +336,12 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 	case MSG_RESULT:
 		c.slock.Lock()
 		if c.status != ST_SYN_SENT {
-			c.lock.Unlock()
+			c.slock.Unlock()
 			err = ErrState
 			logger.Error(err.Error())
 			return
 		}
-		c.lock.Unlock()
+		c.slock.Unlock()
 
 		var errno uint32
 		err = f.Unmarshal(&errno)
@@ -372,7 +372,9 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 			return
 		}
 
-		atomic.AddInt32(&c.window, int32(window))
+		c.wlock.Lock()
+		c.window += int32(window)
+		c.wlock.Unlock()
 		c.wev.Signal()
 		logger.Debugf("%s remote readed %d, write buffer size: %d.",
 			c.String(), window, atomic.LoadInt32(&c.window))
@@ -380,5 +382,10 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		logger.Infof("%s read close.", c.String())
 		c.CloseRead()
 	}
+	return
+}
+
+func (c *Conn) CloseFiber(streamid uint16) (err error) {
+	panic("why?")
 	return
 }

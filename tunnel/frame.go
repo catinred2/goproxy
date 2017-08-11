@@ -33,6 +33,11 @@ type FrameHeader struct {
 	Streamid uint16
 }
 
+func (hdr *FrameHeader) Debug() string {
+	return fmt.Sprintf("frame: type(%d), stream(%d), len(%d).",
+		hdr.Type, hdr.Streamid, hdr.Length)
+}
+
 type Result uint32
 
 type Auth struct {
@@ -53,7 +58,7 @@ type Frame struct {
 }
 
 func ReadFrame(r io.Reader) (f *Frame, err error) {
-	f := new(Frame)
+	f = new(Frame)
 	err = binary.Read(r, binary.BigEndian, &f.FrameHeader)
 	if err != nil {
 		return
@@ -65,7 +70,7 @@ func ReadFrame(r io.Reader) (f *Frame, err error) {
 		logger.Error(err.Error())
 		return
 	}
-	if n != f.FrameHeader.Length {
+	if n != int(f.FrameHeader.Length) {
 		return nil, ErrShortRead
 	}
 	return
@@ -73,8 +78,10 @@ func ReadFrame(r io.Reader) (f *Frame, err error) {
 
 func NewFrame(tp uint8, streamid uint16) (f *Frame) {
 	f = &Frame{
-		Type:     tp,
-		Streamid: streamid,
+		FrameHeader: FrameHeader{
+			Type:     tp,
+			Streamid: streamid,
+		},
 	}
 	return
 }
@@ -84,7 +91,7 @@ func (f *Frame) Marshal(v interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	if len(f.Data) > 2^16-1 {
+	if len(f.Data) > (1<<16 - 1) {
 		return ErrFrameOverFlow
 	}
 	f.FrameHeader.Length = uint16(len(f.Data))
@@ -97,26 +104,19 @@ func (f *Frame) Unmarshal(v interface{}) (err error) {
 		logger.Error(err.Error())
 		return
 	}
-}
-
-func (f *Frame) Debug() string {
-	return fmt.Sprintf("frame: type(%d), stream(%d), len(%d).",
-		f.FrameHeader.Type, f.FrameHeader.Streamid, f.FrameHeader.Length)
-}
-
-func (f *Frame) Pack() (b []byte, err error) {
-	var buf bytes.Buffer
-	buf.Grow(int(5 + f.FrameHeader.Length))
-	binary.Write(buf, binary.BigEndian, f.FrameHeader)
-	buf.Write(f.Data)
 	return
 }
 
+func (f *Frame) Pack() (b []byte) {
+	var buf bytes.Buffer
+	buf.Grow(int(5 + f.FrameHeader.Length))
+	binary.Write(&buf, binary.BigEndian, f.FrameHeader)
+	buf.Write(f.Data)
+	return buf.Bytes()
+}
+
 func (f *Frame) WriteTo(stream io.Writer) (err error) {
-	b, err := f.Pack()
-	if err != nil {
-		return
-	}
+	b := f.Pack()
 	n, err := stream.Write(b)
 	if err != nil {
 		return

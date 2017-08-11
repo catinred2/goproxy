@@ -10,13 +10,13 @@ import (
 
 type Listener struct {
 	net.Listener
-	auth map[string]string
+	auth *map[string]string
 }
 
 func NewListener(original net.Listener, auth *map[string]string) (listener net.Listener) {
 	listener = &Listener{
 		Listener: original,
-		auth:     *auth,
+		auth:     auth,
 	}
 	return
 }
@@ -48,6 +48,7 @@ func (l *Listener) Accept() (conn net.Conn, err error) {
 func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 	fauth, err := ReadFrame(stream)
 	if err != nil {
+		logger.Error(err.Error())
 		return
 	}
 
@@ -58,6 +59,7 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 	var auth Auth
 	err = fauth.Unmarshal(&auth)
 	if err != nil {
+		logger.Error(err.Error())
 		return
 	}
 
@@ -67,10 +69,11 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 	}
 
 	if l.auth != nil {
-		password1, ok := l.auth[auth.Username]
+		password1, ok := (*l.auth)[auth.Username]
 		if !ok || (auth.Password != password1) {
+			var errno Result = ERR_AUTH
 			frslt := NewFrame(MSG_RESULT, fauth.FrameHeader.Streamid)
-			err = frslt.Marshal(&ERR_AUTH)
+			err = frslt.Marshal(&errno)
 			if err != nil {
 				logger.Error(err.Error())
 				return
@@ -86,8 +89,9 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 		}
 	}
 
+	var errno Result = ERR_NONE
 	frslt := NewFrame(MSG_RESULT, fauth.FrameHeader.Streamid)
-	err = frslt.Marshal(&ERR_NONE)
+	err = frslt.Marshal(&errno)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -104,10 +108,10 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 }
 
 type Server struct {
-	Tunnel
+	*Tunnel
 }
 
-func NewServer(conn *Conn) (s *Server) {
+func NewServer(conn net.Conn) (s *Server) {
 	s = &Server{
 		Tunnel: NewTunnel(conn, 1),
 	}
@@ -120,14 +124,15 @@ func (s *Server) SendFrame(f *Frame) (err error) {
 	case MSG_SYN:
 		err = s.onSyn(f)
 	default:
+		logger.Infof(f.Debug())
 		logger.Error(ErrUnexpectedPkg.Error())
-		return
 	}
+	return
 }
 
-func (s *Session) onSyn(f *Frame) (err error) {
+func (s *Server) onSyn(f *Frame) (err error) {
 	var syn Syn
-	err := f.Unmarshal(&syn)
+	err = f.Unmarshal(&syn)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -140,11 +145,11 @@ func (s *Session) onSyn(f *Frame) (err error) {
 		return
 	}
 
-	err = s.Tunnel.PutIntoId(f.FrameHeader.streamid, c)
+	err = s.Tunnel.PutIntoId(f.FrameHeader.Streamid, c)
 	if err != nil {
 		logger.Error(err.Error())
 
-		frslt := NewFrame(MSG_RESULT, f.FrameHeader.streamid)
+		frslt := NewFrame(MSG_RESULT, f.FrameHeader.Streamid)
 		err = frslt.Marshal(ERR_IDEXIST)
 		if err != nil {
 			logger.Error(err.Error())
@@ -163,7 +168,7 @@ func (s *Session) onSyn(f *Frame) (err error) {
 		var err error
 		var conn net.Conn
 
-		logger.Debugf("try to connect %s => %s:%s.",
+		logger.Debugf("%s try to connect %s:%s.",
 			c.String(), syn.Network, syn.Address)
 
 		if dialer, ok := sutils.DefaultTcpDialer.(sutils.TimeoutDialer); ok {
@@ -177,14 +182,14 @@ func (s *Session) onSyn(f *Frame) (err error) {
 			logger.Error(err.Error())
 			defer c.Final()
 
-			frslt := NewFrame(MSG_RESULT, f.FrameHeader.streamid)
+			frslt := NewFrame(MSG_RESULT, f.FrameHeader.Streamid)
 			err = frslt.Marshal(ERR_CONNFAILED)
 			if err != nil {
 				logger.Error(err.Error())
 				return
 			}
 
-			err = s.SendFrame(frslt)
+			err = s.Tunnel.SendFrame(frslt)
 			if err != nil {
 				logger.Error(err.Error())
 			}
@@ -197,20 +202,20 @@ func (s *Session) onSyn(f *Frame) (err error) {
 			return
 		}
 
-		frslt := NewFrame(MSG_RESULT, f.FrameHeader.streamid)
+		frslt := NewFrame(MSG_RESULT, f.FrameHeader.Streamid)
 		err = frslt.Marshal(ERR_NONE)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
 
-		err = s.SendFrame(frslt)
+		err = s.Tunnel.SendFrame(frslt)
 		if err != nil {
 			logger.Error(err.Error())
 		}
 
 		go sutils.CopyLink(conn, c)
-		logger.Noticef("connected %s => %s:%s.",
+		logger.Noticef("%s connected to %s:%s.",
 			c.String(), syn.Network, syn.Address)
 		return
 	}()
