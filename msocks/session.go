@@ -151,14 +151,6 @@ func (s *Session) Close() (err error) {
 	return
 }
 
-func (s *Session) LocalAddr() net.Addr {
-	return s.Conn.LocalAddr()
-}
-
-func (s *Session) RemoteAddr() net.Addr {
-	return s.Conn.RemoteAddr()
-}
-
 func (s *Session) LocalPort() int {
 	addr, ok := s.LocalAddr().(*net.TCPAddr)
 	if !ok {
