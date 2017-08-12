@@ -7,6 +7,7 @@ import (
 	"time"
 
 	logging "github.com/op/go-logging"
+	"github.com/shell909090/goproxy/sutils"
 	"github.com/shell909090/goproxy/tunnel"
 )
 
@@ -26,7 +27,7 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go tunnel.EchoServer(nil, &wg)
+	go sutils.EchoServer(&wg)
 	go tunnel.TunnelServer(nil, &wg)
 	wg.Wait()
 

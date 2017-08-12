@@ -2,7 +2,6 @@ package tunnel
 
 import (
 	"errors"
-	"net"
 
 	logging "github.com/op/go-logging"
 )
@@ -43,7 +42,8 @@ var (
 )
 
 type Tunnel interface {
+	String() string
 	GetSize() int
-	Dial(string, string) (net.Conn, error)
 	Loop()
+	Close() error
 }

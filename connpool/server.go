@@ -3,35 +3,35 @@ package connpool
 import (
 	"net"
 
-	"github.com/shell909090/goproxy/msocks"
+	"github.com/shell909090/goproxy/tunnel"
 )
 
-type SessionPoolServer struct {
-	*SessionPool
+type Server struct {
+	*Pool
 	auth *map[string]string
 }
 
-func NewServer(auth *map[string]string) (sps *SessionPoolServer) {
-	sps = &SessionPoolServer{
-		SessionPool: NewSessionPool(),
-		auth:        auth,
+func NewServer(auth *map[string]string) (server *Server) {
+	server = &Server{
+		Pool: NewPool(),
+		auth: auth,
 	}
 	return
 }
 
-func (sps *SessionPoolServer) Handler(conn net.Conn) {
-	sess := msocks.NewSession(conn, 1)
-	sps.SessionPool.Add(sess)
-	defer sps.SessionPool.Remove(sess)
-	sess.Run()
+func (server *Server) Handler(conn net.Conn) {
+	tun := tunnel.NewServer(conn)
+	server.Pool.Add(tun)
+	defer server.Pool.Remove(tun)
+	tun.Loop()
 
-	logger.Noticef("server session %d quit: %s => %s.",
-		sess.LocalPort(), conn.RemoteAddr(), conn.LocalAddr())
+	logger.Noticef("server session %s quit: %s => %s.",
+		tun.String(), conn.RemoteAddr(), conn.LocalAddr())
 }
 
-func (sps *SessionPoolServer) Serve(listener net.Listener) (err error) {
+func (server *Server) Serve(listener net.Listener) (err error) {
 	var conn net.Conn
-	listener = msocks.NewListener(listener, sps.auth)
+	listener = tunnel.NewListener(listener, server.auth)
 
 	for {
 		conn, err = listener.Accept()
@@ -41,7 +41,7 @@ func (sps *SessionPoolServer) Serve(listener net.Listener) (err error) {
 		}
 		go func() {
 			defer conn.Close()
-			sps.Handler(conn)
+			server.Handler(conn)
 		}()
 	}
 	return

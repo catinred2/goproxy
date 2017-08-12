@@ -1,7 +1,9 @@
 package sutils
 
 import (
+	"io"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -12,6 +14,27 @@ var (
 	logger   = logging.MustGetLogger("sutils")
 	DEBUGDNS = true
 )
+
+var (
+	BufferPool = sync.Pool{
+		New: func() interface{} {
+			return make([]byte, 8192)
+		},
+	}
+)
+
+func CopyLink(dst, src io.ReadWriteCloser) {
+	go func() {
+		defer src.Close()
+		buf := BufferPool.Get().([]byte)
+		defer BufferPool.Put(buf)
+		io.CopyBuffer(src, dst, buf)
+	}()
+	defer dst.Close()
+	buf := BufferPool.Get().([]byte)
+	defer BufferPool.Put(buf)
+	io.CopyBuffer(dst, src, buf)
+}
 
 type Dialer interface {
 	Dial(string, string) (net.Conn, error)

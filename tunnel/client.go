@@ -85,8 +85,8 @@ func NewClient(conn net.Conn) (client *Client) {
 	return
 }
 
-func (client *Client) Dial(network, address string) (c *Conn, err error) {
-	c = NewConn(client.Fabric)
+func (client *Client) Dial(network, address string) (conn net.Conn, err error) {
+	c := NewConn(client.Fabric)
 	c.streamid, err = client.Fabric.PutIntoNextId(c)
 	if err != nil {
 		return
@@ -99,6 +99,7 @@ func (client *Client) Dial(network, address string) (c *Conn, err error) {
 		logger.Error(err.Error())
 	}
 	logger.Infof("%s connected.", c.String())
+	conn = c
 	return
 }
 

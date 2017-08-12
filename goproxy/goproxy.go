@@ -8,8 +8,6 @@ import (
 	"os"
 
 	logging "github.com/op/go-logging"
-
-	"github.com/shell909090/goproxy/sutils"
 )
 
 var logger = logging.MustGetLogger("")
@@ -47,15 +45,16 @@ func LoadJson(configfile string, cfg interface{}) (err error) {
 	return
 }
 
-func LoadConfig() (cfg Config, err error) {
-	err = LoadJson(ConfigFile, &cfg)
+func LoadConfig() (cfg *Config, err error) {
+	cfg = &Config{}
+	err = LoadJson(ConfigFile, cfg)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func SetLogging(cfg Config) (err error) {
+func SetLogging(cfg *Config) (err error) {
 	var file *os.File
 	file = os.Stdout
 
@@ -81,38 +80,51 @@ func SetLogging(cfg Config) (err error) {
 }
 
 func main() {
-	cfg, err := LoadConfig()
+	basecfg, err := LoadConfig()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	err = SetLogging(cfg)
+	err = SetLogging(basecfg)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	switch cfg.DnsNet {
-	case "internal":
-	case "https":
-		sutils.DefaultLookuper, err = sutils.NewGoogleHttpsDns()
+	// switch basecfg.DnsNet {
+	// case "internal":
+	// case "https":
+	// 	sutils.DefaultLookuper, err = sutils.NewGoogleHttpsDns()
+	// 	if err != nil {
+	// 		return
+	// 	}
+	// case "udp", "tcp":
+	// 	if len(basecfg.DnsAddrs) > 0 {
+	// 		sutils.DefaultLookuper = sutils.NewDnsLookuper(
+	// 			basecfg.DnsAddrs, basecfg.DnsNet)
+	// 	}
+	// }
+
+	switch basecfg.Mode {
+	case "server":
+		logger.Notice("server mode start.")
+
+		cfg, err := LoadServerConfig(basecfg)
 		if err != nil {
 			return
 		}
-	case "udp", "tcp":
-		if len(cfg.DnsAddrs) > 0 {
-			sutils.DefaultLookuper = sutils.NewDnsLookuper(
-				cfg.DnsAddrs, cfg.DnsNet)
-		}
-	}
 
-	switch cfg.Mode {
-	case "server":
-		logger.Notice("server mode start.")
-		err = run_server(&cfg)
+		err = RunServer(cfg)
+
 	case "http":
 		logger.Notice("http mode start.")
-		err = run_httproxy(&cfg)
+
+		cfg, err := LoadClientConfig(basecfg)
+		if err != nil {
+			return
+		}
+
+		err = RunHttproxy(cfg)
 	default:
 		logger.Info("unknown mode")
 		return

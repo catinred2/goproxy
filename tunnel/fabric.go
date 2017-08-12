@@ -35,6 +35,12 @@ func (fab *Fabric) String() string {
 		fab.Conn.RemoteAddr().String())
 }
 
+func (fab *Fabric) GetSize() int {
+	fab.plock.Lock()
+	defer fab.plock.Unlock()
+	return len(fab.weaves)
+}
+
 func (fab *Fabric) PutIntoNextId(f Fiber) (id uint16, err error) {
 	fab.plock.Lock()
 	defer fab.plock.Unlock()

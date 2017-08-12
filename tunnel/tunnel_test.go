@@ -88,7 +88,7 @@ func TestTunnel(t *testing.T) {
 	SetLogging()
 
 	wg.Add(2)
-	go EchoServer(t, &wg)
+	go sutils.EchoServer(&wg)
 	go TunnelServer(t, &wg)
 	wg.Wait()
 

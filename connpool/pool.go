@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	logging "github.com/op/go-logging"
-	"github.com/shell909090/goproxy/msocks"
+	"github.com/shell909090/goproxy/tunnel"
 )
 
 const (
@@ -24,62 +24,62 @@ var (
 	logger = logging.MustGetLogger("connpool")
 )
 
-type SessionPool struct {
-	sess_lock sync.RWMutex // sess pool locker
-	sess      map[*msocks.Session]struct{}
+type Pool struct {
+	lock    sync.RWMutex // sess pool locker
+	tunpool map[tunnel.Tunnel]struct{}
 }
 
-func NewSessionPool() (sp *SessionPool) {
-	sp = &SessionPool{
-		sess: make(map[*msocks.Session]struct{}, 0),
+func NewPool() (pool *Pool) {
+	pool = &Pool{
+		tunpool: make(map[tunnel.Tunnel]struct{}, 0),
 	}
 	return
 }
 
-func (sp *SessionPool) CutAll() {
-	sp.sess_lock.Lock()
-	defer sp.sess_lock.Unlock()
-	for s, _ := range sp.sess {
-		s.Close()
+func (pool *Pool) CutAll() {
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	for t, _ := range pool.tunpool {
+		t.Close()
 	}
-	sp.sess = make(map[*msocks.Session]struct{}, 0)
+	pool.tunpool = make(map[tunnel.Tunnel]struct{}, 0)
 }
 
-func (sp *SessionPool) GetSize() int {
-	sp.sess_lock.RLock()
-	defer sp.sess_lock.RUnlock()
-	return len(sp.sess)
+func (pool *Pool) GetSize() int {
+	pool.lock.RLock()
+	defer pool.lock.RUnlock()
+	return len(pool.tunpool)
 }
 
-func (sp *SessionPool) GetSessions() (sessions []*msocks.Session) {
-	sp.sess_lock.RLock()
-	defer sp.sess_lock.RUnlock()
-	for sess, _ := range sp.sess {
-		sessions = append(sessions, sess)
+func (pool *Pool) GetSessions() (tuns []tunnel.Tunnel) {
+	pool.lock.RLock()
+	defer pool.lock.RUnlock()
+	for t, _ := range pool.tunpool {
+		tuns = append(tuns, t)
 	}
 	return
 }
 
-func (sp *SessionPool) Add(s *msocks.Session) {
-	sp.sess_lock.Lock()
-	defer sp.sess_lock.Unlock()
-	sp.sess[s] = struct{}{}
+func (pool *Pool) Add(tun tunnel.Tunnel) {
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	pool.tunpool[tun] = struct{}{}
 }
 
-func (sp *SessionPool) Remove(s *msocks.Session) (err error) {
-	sp.sess_lock.Lock()
-	defer sp.sess_lock.Unlock()
-	if _, ok := sp.sess[s]; !ok {
+func (pool *Pool) Remove(tun tunnel.Tunnel) (err error) {
+	pool.lock.Lock()
+	defer pool.lock.Unlock()
+	if _, ok := pool.tunpool[tun]; !ok {
 		return ErrSessionNotFound
 	}
-	delete(sp.sess, s)
+	delete(pool.tunpool, tun)
 	return
 }
 
-func (sp *SessionPool) Register(mux *http.ServeMux) {
-	mux.HandleFunc("/", sp.HandlerMain)
-	mux.HandleFunc("/lookup", HandlerLookup)
-	mux.HandleFunc("/cutoff", sp.HandlerCutoff)
+func (pool *Pool) Register(mux *http.ServeMux) {
+	// mux.HandleFunc("/", pool.HandlerMain)
+	// mux.HandleFunc("/lookup", HandlerLookup)
+	// mux.HandleFunc("/cutoff", pool.HandlerCutoff)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)

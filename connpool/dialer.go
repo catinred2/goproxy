@@ -5,65 +5,66 @@ import (
 	"net"
 	"sync"
 
-	"github.com/shell909090/goproxy/msocks"
+	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/tunnel"
 )
 
-type SessionPoolDialer struct {
-	*SessionPool
-	MinSess       int
-	MaxConn       int
-	creators_lock sync.Mutex
-	creators      []*msocks.DialerCreator
+type Dialer struct {
+	*Pool
+	MinSess  int
+	MaxConn  int
+	lock     sync.RWMutex
+	creators []*tunnel.DialerCreator
 }
 
-func NewDialer(MinSess, MaxConn int) (spd *SessionPoolDialer) {
+func NewDialer(MinSess, MaxConn int) (dialer *Dialer) {
 	if MinSess == 0 {
 		MinSess = 1
 	}
 	if MaxConn == 0 {
 		MaxConn = 32
 	}
-	spd = &SessionPoolDialer{
-		SessionPool: NewSessionPool(),
-		MinSess:     MinSess,
-		MaxConn:     MaxConn,
+	dialer = &Dialer{
+		Pool:    NewPool(),
+		MinSess: MinSess,
+		MaxConn: MaxConn,
 	}
 	return
 }
 
-func (spd *SessionPoolDialer) AddDialerCreator(dc *msocks.DialerCreator) {
-	spd.creators_lock.Lock()
-	defer spd.creators_lock.Unlock()
-	spd.creators = append(spd.creators, dc)
+func (dialer *Dialer) AddDialerCreator(orig *tunnel.DialerCreator) {
+	dialer.lock.Lock()
+	defer dialer.lock.Unlock()
+	dialer.creators = append(dialer.creators, orig)
 }
 
 // Get one or create one.
-func (spd *SessionPoolDialer) Get() (sess *msocks.Session, err error) {
-	sess_len := spd.GetSize()
+func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
+	tsize := dialer.GetSize()
 
-	if sess_len == 0 {
-		err = spd.createSession(func() bool {
-			return spd.GetSize() == 0
+	if tsize == 0 {
+		err = dialer.createSession(func() bool {
+			return dialer.GetSize() == 0
 		})
 		if err != nil {
 			return nil, err
 		}
-		sess_len = spd.GetSize()
+		tsize = dialer.GetSize()
 	}
 
-	sess, size := spd.getMinimumSess()
-	if sess == nil {
+	tun, fsize := dialer.getMinimum()
+	if tun == nil {
 		return nil, ErrNoSession
 	}
 
-	if size > spd.MaxConn || sess_len < spd.MinSess {
-		go spd.createSession(func() bool {
-			if spd.GetSize() < spd.MinSess {
+	if fsize > dialer.MaxConn || tsize < dialer.MinSess {
+		go dialer.createSession(func() bool {
+			if dialer.GetSize() < dialer.MinSess {
 				return true
 			}
 			// normally, size == -1 should never happen
-			_, size := spd.getMinimumSess()
-			return size > spd.MaxConn
+			_, fsize := dialer.getMinimum()
+			return fsize > dialer.MaxConn
 		})
 	}
 	return
@@ -73,27 +74,26 @@ func (spd *SessionPoolDialer) Get() (sess *msocks.Session, err error) {
 // Repeat for DIAL_RETRY times.
 // Each time it will take 2 ^ (net.ipv4.tcp_syn_retries + 1) - 1 second(s).
 // eg. net.ipv4.tcp_syn_retries = 4, connect will timeout in 2 ^ (4 + 1) -1 = 31s.
-func (spd *SessionPoolDialer) createSession(checker func() bool) (err error) {
-	var sess *msocks.Session
-	spd.creators_lock.Lock()
-
+func (dialer *Dialer) createSession(checker func() bool) (err error) {
+	var tun tunnel.Tunnel
+	dialer.lock.Lock()
 	if checker != nil && !checker() {
-		spd.creators_lock.Unlock()
+		dialer.lock.Unlock()
 		return
 	}
 
 	start := rand.Int()
-	end := start + DIAL_RETRY*len(spd.creators)
+	end := start + DIAL_RETRY*len(dialer.creators)
 	for i := start; i < end; i++ {
-		c := spd.creators[i%len(spd.creators)]
-		sess, err = c.Create()
+		orig := dialer.creators[i%len(dialer.creators)]
+		tun, err = orig.Create()
 		if err != nil {
 			logger.Error(err.Error())
 			continue
 		}
 		break
 	}
-	spd.creators_lock.Unlock()
+	dialer.lock.Unlock()
 
 	if err != nil {
 		logger.Critical("can't connect to any server, quit.")
@@ -101,20 +101,20 @@ func (spd *SessionPoolDialer) createSession(checker func() bool) (err error) {
 	}
 	logger.Notice("session created.")
 
-	spd.Add(sess)
-	go spd.sessRun(sess)
+	dialer.Add(tun)
+	go dialer.sessRun(tun)
 	return
 }
 
-func (spd *SessionPoolDialer) getMinimumSess() (sess *msocks.Session, size int) {
+func (dialer *Dialer) getMinimum() (tun tunnel.Tunnel, size int) {
 	size = -1
-	spd.sess_lock.RLock()
-	defer spd.sess_lock.RUnlock()
-	for s, _ := range spd.sess {
-		ssize := s.GetSize()
-		if size == -1 || ssize < size {
-			sess = s
-			size = s.GetSize()
+	dialer.lock.RLock()
+	defer dialer.lock.RUnlock()
+	for t, _ := range dialer.tunpool {
+		n := t.GetSize()
+		if size == -1 || n < size {
+			tun = t
+			size = n
 		}
 	}
 	return
@@ -125,31 +125,32 @@ func (spd *SessionPoolDialer) getMinimumSess() (sess *msocks.Session, size int) 
 // The only exception is that the closing session is the one and only one
 // lower then max_conn
 // but we can think that as over max_conn line just happened.
-func (spd *SessionPoolDialer) sessRun(sess *msocks.Session) {
+func (dialer *Dialer) sessRun(tun tunnel.Tunnel) {
 	defer func() {
-		err := spd.Remove(sess)
+		err := dialer.Remove(tun)
 		if err != nil {
 			logger.Error(err.Error())
 		}
 	}()
 
-	sess.Run()
+	tun.Loop()
 	logger.Warning("session runtime quit.")
 	return
 }
 
-func (spd *SessionPoolDialer) Dial(network, address string) (net.Conn, error) {
-	sess, err := spd.Get()
+func (dialer *Dialer) Dial(network, address string) (net.Conn, error) {
+	tun, err := dialer.Get()
 	if err != nil {
 		return nil, err
 	}
-	return sess.Dial(network, address)
+	d := tun.(sutils.Dialer)
+	return d.Dial(network, address)
 }
 
-func (spd *SessionPoolDialer) LookupIP(host string) (addrs []net.IP, err error) {
-	sess, err := spd.Get()
-	if err != nil {
-		return
-	}
-	return sess.LookupIP(host)
-}
+// func (dialer *Dialer) LookupIP(host string) (addrs []net.IP, err error) {
+// 	sess, err := dialer.Get()
+// 	if err != nil {
+// 		return
+// 	}
+// 	return sess.LookupIP(host)
+// }

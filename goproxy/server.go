@@ -34,12 +34,7 @@ func LoadServerConfig(basecfg *Config) (cfg *ServerConfig, err error) {
 	return
 }
 
-func run_server(basecfg *Config) (err error) {
-	cfg, err := LoadServerConfig(basecfg)
-	if err != nil {
-		return
-	}
-
+func RunServer(cfg *ServerConfig) (err error) {
 	listener, err := net.Listen("tcp4", cfg.Listen)
 	if err != nil {
 		return
@@ -60,13 +55,13 @@ func run_server(basecfg *Config) (err error) {
 		sutils.DefaultTcpDialer = sutils.DefaultTcp4Dialer
 	}
 
-	svr := connpool.NewServer(&cfg.Auth)
+	server := connpool.NewServer(&cfg.Auth)
 
 	if cfg.AdminIface != "" {
 		mux := http.NewServeMux()
-		svr.SessionPool.Register(mux)
+		server.Register(mux)
 		go httpserver(cfg.AdminIface, mux)
 	}
 
-	return svr.Serve(listener)
+	return server.Serve(listener)
 }

@@ -7,10 +7,10 @@ import (
 	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
 	"github.com/shell909090/goproxy/ipfilter"
-	"github.com/shell909090/goproxy/msocks"
 	"github.com/shell909090/goproxy/portmapper"
 	"github.com/shell909090/goproxy/proxy"
 	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/tunnel"
 )
 
 type ServerDefine struct {
@@ -74,33 +74,30 @@ func (sd *ServerDefine) MakeDialer() (dialer sutils.Dialer, err error) {
 	return
 }
 
-func run_httproxy(basecfg *Config) (err error) {
-	cfg, err := LoadClientConfig(basecfg)
-	if err != nil {
-		return
-	}
-
+func RunHttproxy(cfg *ClientConfig) (err error) {
 	var dialer sutils.Dialer
-	sp := connpool.NewDialer(cfg.MinSess, cfg.MaxConn)
+	pool := connpool.NewDialer(cfg.MinSess, cfg.MaxConn)
 
 	for _, srv := range cfg.Servers {
 		dialer, err = srv.MakeDialer()
 		if err != nil {
 			return
 		}
-		dc := msocks.NewDialerCreator(dialer, srv.Server, srv.Username, srv.Password)
-		sp.AddDialerCreator(dc)
+		creator := tunnel.NewDialerCreator(
+			dialer, "tcp4", srv.Server, srv.Username, srv.Password)
+		pool.AddDialerCreator(creator)
 	}
 
-	dialer = sp
+	dialer = pool
 
-	if cfg.DnsNet == "internal" {
-		sutils.DefaultLookuper = sp
-	}
+	// FIXME: internal
+	// if cfg.DnsNet == "internal" {
+	// 	sutils.DefaultLookuper = pool
+	// }
 
 	if cfg.AdminIface != "" {
 		mux := http.NewServeMux()
-		sp.Register(mux)
+		pool.Register(mux)
 		go httpserver(cfg.AdminIface, mux)
 	}
 
