@@ -74,7 +74,10 @@ func NewTunnel(conn net.Conn, next_id uint16) (t *Tunnel) {
 }
 
 func (t *Tunnel) String() string {
-	return t.Conn.LocalAddr().String()
+	return fmt.Sprintf(
+		"%s->%s",
+		t.Conn.LocalAddr().String(),
+		t.Conn.RemoteAddr().String())
 }
 
 func (t *Tunnel) PutIntoNextId(f Fiber) (id uint16, err error) {
@@ -130,18 +133,17 @@ func (t *Tunnel) SendFrame(f *Frame) (err error) {
 	if n != len(b) {
 		return io.ErrShortWrite
 	}
-	logger.Debugf("%s wrote len:%d.", t.String(), len(b))
+	logger.Debugf("%s wrote len(%d).", t.String(), len(b))
 	return
 }
 
 func (t *Tunnel) CloseFiber(streamid uint16) (err error) {
 	t.plock.Lock()
-	_, ok := t.weaves[streamid]
-	if !ok {
+	defer t.plock.Unlock()
+	if _, ok := t.weaves[streamid]; !ok {
 		return fmt.Errorf("streamid(%d) not exist.", streamid)
 	}
 	delete(t.weaves, streamid)
-	t.plock.Unlock()
 
 	logger.Infof("%s remove port %d.", t.String(), streamid)
 	return
@@ -152,18 +154,23 @@ func (t *Tunnel) Close() (err error) {
 
 	t.plock.RLock()
 	defer t.plock.RUnlock()
+	if t.closed {
+		return
+	}
 
-	logger.Warningf("close all connects (%d) for session: %s.",
-		len(t.weaves), t.String())
+	logger.Warningf("%s close all connects (%d).", t.String(), len(t.weaves))
 
-	for i, v := range t.weaves {
-		go func() {
-			err := v.CloseFiber(i)
+	for i, f := range t.weaves {
+		go func(streamid uint16, fiber Fiber) {
+			// conn.CloseFiber may call tunnel.CloseFiber,
+			// which will try to lock tunnel.plock.
+			// use goroutine to provent daedlock.
+			err := fiber.CloseFiber(streamid)
 			if err != nil {
 				logger.Error(err.Error())
 				return
 			}
-		}()
+		}(i, f)
 	}
 	t.closed = true
 	return

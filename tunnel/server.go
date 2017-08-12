@@ -71,15 +71,8 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 	if l.auth != nil {
 		password1, ok := (*l.auth)[auth.Username]
 		if !ok || (auth.Password != password1) {
-			var errno Result = ERR_AUTH
-			frslt := NewFrame(MSG_RESULT, fauth.FrameHeader.Streamid)
-			err = frslt.Marshal(&errno)
-			if err != nil {
-				logger.Error(err.Error())
-				return
-			}
-
-			err = frslt.WriteTo(stream)
+			err = WriteFrame(
+				stream, MSG_RESULT, fauth.FrameHeader.Streamid, ERR_AUTH)
 			if err != nil {
 				logger.Error(err.Error())
 				return
@@ -89,21 +82,14 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 		}
 	}
 
-	var errno Result = ERR_NONE
-	frslt := NewFrame(MSG_RESULT, fauth.FrameHeader.Streamid)
-	err = frslt.Marshal(&errno)
+	err = WriteFrame(
+		stream, MSG_RESULT, fauth.FrameHeader.Streamid, ERR_NONE)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	err = frslt.WriteTo(stream)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
-
-	logger.Info("auth passed.")
+	logger.Notice("auth passed.")
 	return
 }
 
@@ -144,6 +130,7 @@ func (s *Server) onSyn(f *Frame) (err error) {
 		logger.Error(err.Error())
 		return
 	}
+	c.streamid = f.FrameHeader.Streamid
 
 	err = s.Tunnel.PutIntoId(f.FrameHeader.Streamid, c)
 	if err != nil {

@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"net"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -57,7 +56,7 @@ type Conn struct {
 
 	r_rest []byte
 	rqueue *Queue
-	wlock  sync.RWMutex
+	wlock  sync.RWMutex // protect window, not sendFrame
 	window int32
 	wev    *sync.Cond
 }
@@ -89,15 +88,7 @@ func (c *Conn) Connect(network, address string) (err error) {
 		Network: network,
 		Address: address,
 	}
-	fsyn := NewFrame(MSG_SYN, c.streamid)
-	err = fsyn.Marshal(syn)
-	if err != nil {
-		logger.Error(err.Error())
-		c.Final()
-		return
-	}
-
-	err = c.t.SendFrame(fsyn)
+	err = SendFrame(c.t, MSG_SYN, c.streamid, syn)
 	if err != nil {
 		logger.Error(err.Error())
 		c.Final()
@@ -115,7 +106,6 @@ func (c *Conn) Connect(network, address string) (err error) {
 	if err != nil {
 		return
 	}
-	logger.Infof("%s connected.", c.String())
 
 	c.ch_syn = nil
 	return
@@ -170,18 +160,13 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 		}
 	}
 
-	fwnd := NewFrame(MSG_WND, c.streamid)
-	err = fwnd.Marshal(uint32(n))
+	err = SendFrame(c.t, MSG_WND, c.streamid, uint32(n))
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
 
-	err = c.t.SendFrame(fwnd)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
+	logger.Debugf("%s readed %d bytes.", c.String(), n)
 	return
 }
 
@@ -198,12 +183,12 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 			logger.Error(err.Error())
 			return
 		}
-		logger.Debugf("%s send chunk size %d at %d.", c.String(), size, n)
+		logger.Debugf("%s send chunk [%d:%d+%d].", c.String(), n, n, size)
 
 		data = data[size:]
 		n += int(size)
 	}
-	logger.Infof("%s sent %d bytes.", c.String(), n)
+	logger.Debugf("%s sent %d bytes.", c.String(), n)
 	return
 }
 
@@ -239,22 +224,18 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 }
 
 func (c *Conn) Close() (err error) {
-	logger.Infof("%s write close.", c.String())
+	return c.CloseWrite()
+}
 
-	err = c.CloseWrite()
-
+func (c *Conn) Reset() {
 	c.slock.Lock()
-	defer c.slock.Unlock()
-	switch c.status {
-	case ST_EST:
-		c.status = ST_FIN_SENT
-	case ST_FIN_RECV:
-		c.status = ST_UNKNOWN
-		c.Final()
-	default:
-		return ErrState
+	c.status = ST_UNKNOWN
+	c.slock.Unlock()
+	c.Final()
+	err := c.rqueue.Close()
+	if err != nil {
+		panic(err.Error())
 	}
-	return
 }
 
 func (c *Conn) Final() {
@@ -269,21 +250,34 @@ func (c *Conn) Final() {
 }
 
 func (c *Conn) CloseWrite() (err error) {
-	c.wlock.Lock()
-	defer c.wlock.Unlock()
+	c.slock.Lock()
+	defer c.slock.Unlock()
 
-	ffin := NewFrame(MSG_FIN, c.streamid)
-	err = c.t.SendFrame(ffin)
+	switch c.status {
+	case ST_EST:
+		c.status = ST_FIN_SENT
+	case ST_FIN_RECV:
+		c.status = ST_UNKNOWN
+		c.Final()
+	case ST_UNKNOWN:
+		return
+	default:
+		return ErrState
+	}
+
+	logger.Debugf("%s write close.", c.String())
+
+	err = SendFrame(c.t, MSG_FIN, c.streamid, nil)
 	if err != nil {
 		logger.Info(err.Error())
 		return
 	}
+
 	return
 }
 
 func (c *Conn) CloseRead() (err error) {
-	c.rqueue.Close()
-
+	logger.Debugf("%s read close.", c.String())
 	c.slock.Lock()
 	defer c.slock.Unlock()
 	switch c.status {
@@ -292,8 +286,15 @@ func (c *Conn) CloseRead() (err error) {
 	case ST_FIN_SENT:
 		c.status = ST_UNKNOWN
 		c.Final()
+	case ST_UNKNOWN:
+		return
 	default:
 		return ErrState
+	}
+
+	err = c.rqueue.Close()
+	if err != nil {
+		panic(err)
 	}
 	return
 }
@@ -376,16 +377,19 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		c.window += int32(window)
 		c.wlock.Unlock()
 		c.wev.Signal()
-		logger.Debugf("%s remote readed %d, write buffer size: %d.",
-			c.String(), window, atomic.LoadInt32(&c.window))
+		logger.Debugf("%s window + %d = %d.", c.String(), window, c.window)
 	case MSG_FIN:
-		logger.Infof("%s read close.", c.String())
+		logger.Debugf("%s read close.", c.String())
 		c.CloseRead()
+	case MSG_RST:
+		logger.Debugf("%s reset.", c.String())
+		c.Reset()
 	}
 	return
 }
 
 func (c *Conn) CloseFiber(streamid uint16) (err error) {
-	panic("why?")
+	// Mostly Tunnel closed.
+	c.Reset()
 	return
 }

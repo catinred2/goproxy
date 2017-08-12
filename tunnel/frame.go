@@ -76,6 +76,28 @@ func ReadFrame(r io.Reader) (f *Frame, err error) {
 	return
 }
 
+func SendFrame(fiber Fiber, tp uint8, streamid uint16, v interface{}) (err error) {
+	f := NewFrame(tp, streamid)
+	if v != nil {
+		err = f.Marshal(v)
+		if err != nil {
+			return
+		}
+	}
+	err = fiber.SendFrame(f)
+	return
+}
+
+func WriteFrame(stream io.Writer, tp uint8, streamid uint16, v interface{}) (err error) {
+	f := NewFrame(tp, streamid)
+	err = f.Marshal(v)
+	if err != nil {
+		return
+	}
+	err = f.WriteTo(stream)
+	return
+}
+
 func NewFrame(tp uint8, streamid uint16) (f *Frame) {
 	f = &Frame{
 		FrameHeader: FrameHeader{

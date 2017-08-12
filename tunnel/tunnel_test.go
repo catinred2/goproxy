@@ -2,7 +2,7 @@ package tunnel
 
 import (
 	"bytes"
-	"io"
+	"fmt"
 	stdlog "log"
 	"net"
 	"os"
@@ -13,122 +13,101 @@ import (
 	"github.com/shell909090/goproxy/sutils"
 )
 
-func echo_server(t *testing.T, wg *sync.WaitGroup) {
-	listener, err := net.Listen("tcp", "127.0.0.1:14756")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	wg.Done()
+const (
+	PAYLOAD = "foobar"
+)
 
-	for {
-		conn, err := listener.Accept()
+func echo_client(t *testing.T, conn net.Conn, wg *sync.WaitGroup) {
+	defer conn.Close()
+	defer wg.Done()
+
+	for i := 0; i < 100; i++ {
+		var buf bytes.Buffer
+
+		_, err := buf.WriteString(PAYLOAD)
 		if err != nil {
 			t.Error(err)
-			continue
+			return
 		}
-		go func() {
-			var buf [1024]byte
-			defer conn.Close()
 
-			for {
-				n, err := conn.Read(buf[:])
-				switch err {
-				default:
-					t.Error(err)
-					return
-				case io.EOF:
-					return
-				case nil:
-				}
+		_, err = fmt.Fprintf(&buf, "%d", i)
+		if err != nil {
+			t.Error(err)
+			return
+		}
 
-				_, err = conn.Write(buf[:n])
-				if err != nil {
-					t.Error(err)
-					return
-				}
-			}
-		}()
+		b := buf.Bytes()
+
+		n, err := conn.Write(b)
+		if err != nil {
+			return
+		}
+		if n < len(b) {
+			t.Error("short write")
+			return
+		}
+
+		var readbuf [100]byte
+		n, err = conn.Read(readbuf[:])
+		if err != nil {
+			return
+		}
+		if bytes.Compare(b, readbuf[:n]) != 0 {
+			t.Error("data not match")
+			return
+		}
 	}
 }
 
-func tunnel_server(t *testing.T, wg *sync.WaitGroup) {
-	listener, err := net.Listen("tcp", "127.0.0.1:14755")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	listener = NewListener(listener, nil)
-	wg.Done()
-
-	for {
-		conn, err := listener.Accept()
+func multi_client(t *testing.T, client *Client, wg *sync.WaitGroup) {
+	for i := 0; i < 10; i++ {
+		conn, err := client.Dial("tcp", "127.0.0.1:14756")
 		if err != nil {
 			t.Error(err)
-			continue
+			return
 		}
-		go func() {
-			defer conn.Close()
-			srv := NewServer(conn)
-			srv.Loop()
-		}()
+
+		wg.Add(1)
+		go echo_client(t, conn, wg)
 	}
 }
 
 func SetLogging() {
 	logBackend := logging.NewLogBackend(os.Stderr, "",
-		stdlog.LstdFlags|stdlog.Lmicroseconds|stdlog.Lshortfile)
+		stdlog.Ltime|stdlog.Lmicroseconds|stdlog.Lshortfile)
 	logging.SetBackend(logBackend)
-	logging.SetFormatter(logging.MustStringFormatter("%{level}: %{message}"))
-	lv, _ := logging.LogLevel("DEBUG")
+	logging.SetFormatter(
+		logging.MustStringFormatter("%{module}[%{level}]: %{message}"))
+	lv, _ := logging.LogLevel("INFO")
 	logging.SetLevel(lv, "")
 	return
 }
 
 func TestTunnel(t *testing.T) {
+	var wg sync.WaitGroup
 	SetLogging()
 
-	var wg sync.WaitGroup
 	wg.Add(2)
-	go echo_server(t, &wg)
-	go tunnel_server(t, &wg)
+	go EchoServer(t, &wg)
+	go TunnelServer(t, &wg)
 	wg.Wait()
 
-	dc := NewDialerCreator(sutils.DefaultTcpDialer, "127.0.0.1:14755", "", "")
+	dc := NewDialerCreator(sutils.DefaultTcpDialer, "tcp4", "127.0.0.1:14755", "", "")
+
 	client, err := dc.Create()
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	go client.Loop()
+	go func() {
+		client.Loop()
+		logger.Warning("client loop quit")
+	}()
 
-	conn, err := client.Dial("tcp", "127.0.0.1:14756")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	multi_client(t, client, &wg)
+	wg.Wait()
 
-	s := "foobar"
-	b := []byte(s)
-
-	n, err := conn.Write(b)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if n < len(b) {
-		t.Error("short write")
-	}
-
-	var buf [100]byte
-	n, err = conn.Read(buf[:])
-	if err != nil {
-		t.Error(err)
-		return
-	}
-	if bytes.Compare(b, buf[:n]) != 0 {
-		t.Error("data not match")
-		return
-	}
+	multi_client(t, client, &wg)
+	client.Close()
+	wg.Wait()
 }

@@ -10,14 +10,16 @@ import (
 
 type DialerCreator struct {
 	sutils.Dialer
+	network    string
 	serveraddr string
 	username   string
 	password   string
 }
 
-func NewDialerCreator(raw sutils.Dialer, serveraddr, username, password string) (dc *DialerCreator) {
+func NewDialerCreator(raw sutils.Dialer, network, serveraddr, username, password string) (dc *DialerCreator) {
 	return &DialerCreator{
 		Dialer:     raw,
+		network:    network,
 		serveraddr: serveraddr,
 		username:   username,
 		password:   password,
@@ -27,8 +29,7 @@ func NewDialerCreator(raw sutils.Dialer, serveraddr, username, password string) 
 func (dc *DialerCreator) Create() (client *Client, err error) {
 	logger.Noticef("msocks try to connect %s.", dc.serveraddr)
 
-	// FIXME: network?
-	conn, err := dc.Dialer.Dial("tcp4", dc.serveraddr)
+	conn, err := dc.Dialer.Dial(dc.network, dc.serveraddr)
 	if err != nil {
 		return
 	}
@@ -48,14 +49,7 @@ func (dc *DialerCreator) Create() (client *Client, err error) {
 		Username: dc.username,
 		Password: dc.password,
 	}
-	fauth := NewFrame(MSG_AUTH, 0)
-	err = fauth.Marshal(&auth)
-	if err != nil {
-		return
-	}
-	b := fauth.Pack()
-
-	_, err = conn.Write(b)
+	err = WriteFrame(conn, MSG_AUTH, 0, &auth)
 	if err != nil {
 		return
 	}
@@ -106,13 +100,14 @@ func (client *Client) Dial(network, address string) (c *Conn, err error) {
 	}
 	c.streamid = streamid
 
-	logger.Infof("try to make %s dial %s:%s.",
+	logger.Debugf("%s try to dial %s:%s.",
 		client.Conn.RemoteAddr().String(), network, address)
 
 	err = c.Connect(network, address)
 	if err != nil {
 		logger.Error(err.Error())
 	}
+	logger.Infof("%s connected.", c.String())
 	return
 }
 
