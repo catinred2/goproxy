@@ -74,20 +74,20 @@ func (dc *DialerCreator) Create() (client *Client, err error) {
 }
 
 type Client struct {
-	*Tunnel
+	*Fabric
 }
 
 func NewClient(conn net.Conn) (client *Client) {
 	client = &Client{
-		Tunnel: NewTunnel(conn, 0),
+		Fabric: NewFabric(conn, 0),
 	}
 	client.dft_fiber = client
 	return
 }
 
 func (client *Client) Dial(network, address string) (c *Conn, err error) {
-	c = NewConn(client.Tunnel)
-	c.streamid, err = client.Tunnel.PutIntoNextId(c)
+	c = NewConn(client.Fabric)
+	c.streamid, err = client.Fabric.PutIntoNextId(c)
 	if err != nil {
 		return
 	}

@@ -48,7 +48,7 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 
 // FIXME: Network, Address
 type Conn struct {
-	t        *Tunnel
+	fab      *Fabric
 	slock    sync.Mutex
 	status   uint8
 	streamid uint16
@@ -61,10 +61,10 @@ type Conn struct {
 	wev    *sync.Cond
 }
 
-func NewConn(t *Tunnel) (c *Conn) {
+func NewConn(fab *Fabric) (c *Conn) {
 	c = &Conn{
 		status: ST_UNKNOWN,
-		t:      t,
+		fab:    fab,
 		rqueue: NewQueue(),
 		window: WINDOWSIZE,
 		wev:    &sync.Cond{},
@@ -73,7 +73,7 @@ func NewConn(t *Tunnel) (c *Conn) {
 }
 
 func (c *Conn) String() (s string) {
-	return fmt.Sprintf("%s(%d)", c.t.String(), c.streamid)
+	return fmt.Sprintf("%s(%d)", c.fab.String(), c.streamid)
 }
 
 func (c *Conn) Connect(network, address string) (err error) {
@@ -91,7 +91,7 @@ func (c *Conn) Connect(network, address string) (err error) {
 		Network: network,
 		Address: address,
 	}
-	err = SendFrame(c.t, MSG_SYN, c.streamid, &syn)
+	err = SendFrame(c.fab, MSG_SYN, c.streamid, &syn)
 	if err != nil {
 		logger.Error(err.Error())
 		c.Final()
@@ -156,7 +156,7 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 		}
 	}
 
-	err = SendFrame(c.t, MSG_WND, c.streamid, uint32(n))
+	err = SendFrame(c.fab, MSG_WND, c.streamid, uint32(n))
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -209,7 +209,7 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 		c.wev.Wait()
 	}
 
-	err = c.t.SendFrame(fdata)
+	err = c.fab.SendFrame(fdata)
 	if err != nil {
 		logger.Info(err.Error())
 		return
@@ -235,7 +235,7 @@ func (c *Conn) Reset() {
 }
 
 func (c *Conn) Final() {
-	err := c.t.CloseFiber(c.streamid)
+	err := c.fab.CloseFiber(c.streamid)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -263,7 +263,7 @@ func (c *Conn) closeWrite() (err error) {
 
 	logger.Debugf("%s write close.", c.String())
 
-	err = SendFrame(c.t, MSG_FIN, c.streamid, nil)
+	err = SendFrame(c.fab, MSG_FIN, c.streamid, nil)
 	if err != nil {
 		logger.Info(err.Error())
 		return
@@ -294,14 +294,14 @@ func (c *Conn) closeRead() (err error) {
 
 func (c *Conn) LocalAddr() net.Addr {
 	return &Addr{
-		c.t.LocalAddr(),
+		c.fab.LocalAddr(),
 		c.streamid,
 	}
 }
 
 func (c *Conn) RemoteAddr() net.Addr {
 	return &Addr{
-		c.t.RemoteAddr(),
+		c.fab.RemoteAddr(),
 		c.streamid,
 	}
 }
@@ -382,7 +382,7 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 }
 
 func (c *Conn) CloseFiber(streamid uint16) (err error) {
-	// Mostly Tunnel closed.
+	// Mostly Fabric closed.
 	c.Reset()
 	return
 }

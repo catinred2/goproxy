@@ -84,12 +84,12 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 }
 
 type Server struct {
-	*Tunnel
+	*Fabric
 }
 
 func NewServer(conn net.Conn) (s *Server) {
 	s = &Server{
-		Tunnel: NewTunnel(conn, 1),
+		Fabric: NewFabric(conn, 1),
 	}
 	s.dft_fiber = s
 	return
@@ -126,7 +126,7 @@ func (s *Server) onSyn(streamid uint16, syn *Syn) (err error) {
 }
 
 func (s *Server) tcp_proxy(streamid uint16, syn *Syn) (err error) {
-	c := NewConn(s.Tunnel)
+	c := NewConn(s.Fabric)
 	err = c.CheckAndSetStatus(ST_UNKNOWN, ST_SYN_RECV)
 	if err != nil {
 		logger.Error(err.Error())
@@ -134,12 +134,12 @@ func (s *Server) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 	}
 	c.streamid = streamid
 
-	err = s.Tunnel.PutIntoId(streamid, c)
+	err = s.Fabric.PutIntoId(streamid, c)
 	if err != nil {
 		logger.Error(err.Error())
 
 		err = SendFrame(
-			s.Tunnel, MSG_RESULT, streamid, ERR_IDEXIST)
+			s.Fabric, MSG_RESULT, streamid, ERR_IDEXIST)
 		if err != nil {
 			logger.Error(err.Error())
 			return
@@ -161,7 +161,7 @@ func (s *Server) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 			defer c.Final()
 
 			err = SendFrame(
-				s.Tunnel, MSG_RESULT, streamid, ERR_CONNFAILED)
+				s.Fabric, MSG_RESULT, streamid, ERR_CONNFAILED)
 			if err != nil {
 				logger.Error(err.Error())
 				return
@@ -176,7 +176,7 @@ func (s *Server) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 		}
 
 		err = SendFrame(
-			s.Tunnel, MSG_RESULT, streamid, ERR_NONE)
+			s.Fabric, MSG_RESULT, streamid, ERR_NONE)
 		if err != nil {
 			logger.Error(err.Error())
 			return
