@@ -54,28 +54,21 @@ func (dc *DialerCreator) Create() (client *Client, err error) {
 		return
 	}
 
-	frslt, err := ReadFrame(conn)
+	var errno Result
+	frslt, err := ReadFrame(conn, &errno)
 	if err != nil {
 		return
 	}
 
-	if frslt.FrameHeader.Type != MSG_RESULT {
+	if frslt.Header.Type != MSG_RESULT {
 		return nil, ErrUnexpectedPkg
 	}
-
-	var errno Result
-	err = frslt.Unmarshal(&errno)
-	if err != nil {
-		return
-	}
-
 	if errno != ERR_NONE {
 		conn.Close()
 		return nil, fmt.Errorf("create connection failed with code: %d.", errno)
 	}
 
 	logger.Notice("auth passed.")
-
 	client = NewClient(conn)
 	return
 }
@@ -94,14 +87,12 @@ func NewClient(conn net.Conn) (client *Client) {
 
 func (client *Client) Dial(network, address string) (c *Conn, err error) {
 	c = NewConn(client.Tunnel)
-	streamid, err := client.Tunnel.PutIntoNextId(c)
+	c.streamid, err = client.Tunnel.PutIntoNextId(c)
 	if err != nil {
 		return
 	}
-	c.streamid = streamid
 
-	logger.Debugf("%s try to dial %s:%s.",
-		client.Conn.RemoteAddr().String(), network, address)
+	logger.Debugf("%s try to dial %s:%s.", client.String(), network, address)
 
 	err = c.Connect(network, address)
 	if err != nil {
@@ -112,17 +103,11 @@ func (client *Client) Dial(network, address string) (c *Conn, err error) {
 }
 
 func (client *Client) SendFrame(f *Frame) (err error) {
-	panic("why?")
-	// switch f.FrameHeader.Type {
-	// case MSG_SYN:
-	// 	err = client.onSyn(f)
-	// default:
-	// 	logger.Error(ErrUnexpectedPkg.Error())
-	// 	return
-	// }
+	panic("client should never recv unmapped frame.")
+	return
 }
 
-// never called as default fiber.
 func (client *Client) CloseFiber(streamid uint16) (err error) {
+	panic("client's CloseFiber should never been called.")
 	return
 }

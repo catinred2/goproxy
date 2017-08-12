@@ -29,7 +29,7 @@ type Addr struct {
 }
 
 func (a *Addr) String() (s string) {
-	return fmt.Sprintf("%s:%d", a.Addr.String(), a.streamid)
+	return fmt.Sprintf("%s(%d)", a.Addr.String(), a.streamid)
 }
 
 func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
@@ -78,17 +78,20 @@ func (c *Conn) String() (s string) {
 
 func (c *Conn) Connect(network, address string) (err error) {
 	c.ch_syn = make(chan uint32, 0)
+	defer func() {
+		c.ch_syn = nil
+	}()
 
 	err = c.CheckAndSetStatus(ST_UNKNOWN, ST_SYN_SENT)
 	if err != nil {
 		return
 	}
 
-	syn := &Syn{
+	syn := Syn{
 		Network: network,
 		Address: address,
 	}
-	err = SendFrame(c.t, MSG_SYN, c.streamid, syn)
+	err = SendFrame(c.t, MSG_SYN, c.streamid, &syn)
 	if err != nil {
 		logger.Error(err.Error())
 		c.Final()
@@ -103,11 +106,6 @@ func (c *Conn) Connect(network, address string) (err error) {
 		return
 	}
 	err = c.CheckAndSetStatus(ST_SYN_SENT, ST_EST)
-	if err != nil {
-		return
-	}
-
-	c.ch_syn = nil
 	return
 }
 
@@ -125,9 +123,6 @@ func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
 
 func (c *Conn) Read(data []byte) (n int, err error) {
 	var v interface{}
-	// c.rlock.Lock()
-	// defer c.rlock.Unlock()
-
 	target := data[:]
 	for len(target) > 0 {
 		if c.r_rest == nil {
@@ -142,7 +137,8 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 			}
 
 			if v == nil {
-				// what's this for?
+				// when rqueue not blocked
+				// it will return v=nil, err=nil
 				break
 			}
 			c.r_rest = v.([]byte)
@@ -193,9 +189,6 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 }
 
 func (c *Conn) writeSlice(data []byte) (err error) {
-	c.wlock.Lock()
-	defer c.wlock.Unlock()
-
 	c.slock.Lock()
 	if c.status != ST_EST {
 		c.slock.Unlock()
@@ -205,7 +198,10 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 
 	fdata := NewFrame(MSG_DATA, c.streamid)
 	fdata.Data = data
-	fdata.FrameHeader.Length = uint16(len(data))
+	fdata.Header.Length = uint16(len(data))
+
+	c.wlock.Lock()
+	defer c.wlock.Unlock()
 
 	logger.Debugf("write data len: %d, window: %d", len(data), c.window)
 	for c.window-int32(len(data)) < 0 {
@@ -224,7 +220,7 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 }
 
 func (c *Conn) Close() (err error) {
-	return c.CloseWrite()
+	return c.closeWrite()
 }
 
 func (c *Conn) Reset() {
@@ -249,7 +245,7 @@ func (c *Conn) Final() {
 	return
 }
 
-func (c *Conn) CloseWrite() (err error) {
+func (c *Conn) closeWrite() (err error) {
 	c.slock.Lock()
 	defer c.slock.Unlock()
 
@@ -276,7 +272,7 @@ func (c *Conn) CloseWrite() (err error) {
 	return
 }
 
-func (c *Conn) CloseRead() (err error) {
+func (c *Conn) closeRead() (err error) {
 	logger.Debugf("%s read close.", c.String())
 	c.slock.Lock()
 	defer c.slock.Unlock()
@@ -292,10 +288,7 @@ func (c *Conn) CloseRead() (err error) {
 		return ErrState
 	}
 
-	err = c.rqueue.Close()
-	if err != nil {
-		panic(err)
-	}
+	c.rqueue.Close()
 	return
 }
 
@@ -326,14 +319,12 @@ func (c *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 func (c *Conn) SendFrame(f *Frame) (err error) {
-	switch f.FrameHeader.Type {
+	switch f.Header.Type {
 	default:
 		err = ErrUnexpectedPkg
 		logger.Error(err.Error())
-		err = c.Close()
-		if err != nil {
-			logger.Error(err.Error())
-		}
+		c.Reset()
+
 	case MSG_RESULT:
 		c.slock.Lock()
 		if c.status != ST_SYN_SENT {
@@ -355,6 +346,7 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		case c.ch_syn <- errno:
 		default:
 		}
+
 	case MSG_DATA:
 		err = c.rqueue.Push(f.Data)
 		switch err {
@@ -366,6 +358,7 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		case nil:
 		}
 		logger.Debugf("%s recved %d bytes.", c.String(), len(f.Data))
+
 	case MSG_WND:
 		var window Wnd
 		err = f.Unmarshal(&window)
@@ -380,7 +373,7 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		logger.Debugf("%s window + %d = %d.", c.String(), window, c.window)
 	case MSG_FIN:
 		logger.Debugf("%s read close.", c.String())
-		c.CloseRead()
+		c.closeRead()
 	case MSG_RST:
 		logger.Debugf("%s reset.", c.String())
 		c.Reset()

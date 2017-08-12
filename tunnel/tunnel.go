@@ -13,9 +13,8 @@ import (
 
 const (
 	AUTH_TIMEOUT  = 10000
-	DIAL_TIMEOUT  = 30000
-	DNS_TIMEOUT   = 30000
-	WRITE_TIMEOUT = 60000
+	DIAL_TIMEOUT  = 20000
+	WRITE_TIMEOUT = 10000
 	WINDOWSIZE    = 4 * 1024 * 1024
 )
 
@@ -32,21 +31,15 @@ const (
 var (
 	ErrShortRead      = errors.New("short read.")
 	ErrShortWrite     = errors.New("short write.")
+	ErrUnknownNetwork = errors.New("unknown network.")
 	ErrAuthFailed     = errors.New("auth failed %s.")
 	ErrAuthTimeout    = errors.New("auth timeout %s.")
 	ErrStreamNotExist = errors.New("stream not exist.")
+	ErrStreamOutOfID  = errors.New("stream out of id.")
 	ErrQueueClosed    = errors.New("queue closed.")
 	ErrUnexpectedPkg  = errors.New("unexpected package.")
-	ErrNotSyn         = errors.New("frame result in conn which status is not syn.")
-	ErrFinState       = errors.New("status not est or fin wait when get fin.")
 	ErrIdExist        = errors.New("frame sync stream id exist.")
 	ErrState          = errors.New("status error.")
-	ErrUnknownState   = errors.New("unknown status.")
-	ErrChanClosed     = errors.New("chan closed.")
-	ErrDnsTimeOut     = errors.New("dns timeout.")
-	ErrDnsMsgIllegal  = errors.New("dns message illegal.")
-	ErrDnsLookuper    = errors.New("dns lookuper can't exchange.")
-	ErrNoDnsServer    = errors.New("no proper dns server.")
 )
 
 var (
@@ -82,12 +75,13 @@ func (t *Tunnel) String() string {
 
 func (t *Tunnel) PutIntoNextId(f Fiber) (id uint16, err error) {
 	t.plock.Lock()
+	defer t.plock.Unlock()
 
 	startid := t.next_id
 	for _, ok := t.weaves[t.next_id]; ok; _, ok = t.weaves[t.next_id] {
 		t.next_id += 2
 		if t.next_id == startid {
-			err = errors.New("run out of stream id")
+			err = ErrStreamOutOfID
 			logger.Error(err.Error())
 			return
 		}
@@ -96,16 +90,13 @@ func (t *Tunnel) PutIntoNextId(f Fiber) (id uint16, err error) {
 	t.next_id += 2
 	t.weaves[id] = f
 
-	t.plock.Unlock()
-
-	logger.Debugf("%p put into %s next id %d.", f, t.String(), id)
+	logger.Debugf("%s put %p into %s.", t.String(), f, id)
 	return
 }
 
 func (t *Tunnel) PutIntoId(id uint16, f Fiber) (err error) {
-	logger.Debugf("%s put into id %d: %p.", t.String(), id, f)
-
 	t.plock.Lock()
+	defer t.plock.Unlock()
 
 	_, ok := t.weaves[id]
 	if ok {
@@ -113,7 +104,7 @@ func (t *Tunnel) PutIntoId(id uint16, f Fiber) (err error) {
 	}
 	t.weaves[id] = f
 
-	t.plock.Unlock()
+	logger.Debugf("%s put %p into %d.", t.String(), f, id)
 	return
 }
 
@@ -157,9 +148,9 @@ func (t *Tunnel) Close() (err error) {
 	if t.closed {
 		return
 	}
+	t.closed = true
 
 	logger.Warningf("%s close all connects (%d).", t.String(), len(t.weaves))
-
 	for i, f := range t.weaves {
 		go func(streamid uint16, fiber Fiber) {
 			// conn.CloseFiber may call tunnel.CloseFiber,
@@ -172,7 +163,6 @@ func (t *Tunnel) Close() (err error) {
 			}
 		}(i, f)
 	}
-	t.closed = true
 	return
 }
 
@@ -180,7 +170,7 @@ func (t *Tunnel) Loop() {
 	defer t.Close()
 
 	for {
-		f, err := ReadFrame(t.Conn)
+		f, err := ReadFrame(t.Conn, nil)
 		switch err {
 		default:
 			logger.Error(err.Error())
@@ -194,7 +184,7 @@ func (t *Tunnel) Loop() {
 		logger.Debugf("recv %s", f.Debug())
 
 		t.plock.RLock()
-		fiber, ok := t.weaves[f.FrameHeader.Streamid]
+		fiber, ok := t.weaves[f.Header.Streamid]
 		t.plock.RUnlock()
 		if !ok || fiber == nil {
 			fiber = t.dft_fiber
@@ -204,7 +194,7 @@ func (t *Tunnel) Loop() {
 		if err != nil {
 			logger.Errorf("send %s => %s(%d) failed, err: %s.",
 				f.Debug(), t.String(),
-				f.FrameHeader.Streamid, err.Error())
+				f.Header.Streamid, err.Error())
 			return
 		}
 	}

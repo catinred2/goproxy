@@ -18,22 +18,19 @@ const (
 	MSG_WND
 	MSG_FIN
 	MSG_RST
-	MSG_PING
-	MSG_DNS
-	MSG_SPAM
 )
 
 var (
 	ErrFrameOverFlow = errors.New("marshal overflow in frame")
 )
 
-type FrameHeader struct {
+type Header struct {
 	Type     uint8
 	Length   uint16
 	Streamid uint16
 }
 
-func (hdr *FrameHeader) Debug() string {
+func (hdr *Header) Debug() string {
 	return fmt.Sprintf("frame: type(%d), stream(%d), len(%d).",
 		hdr.Type, hdr.Streamid, hdr.Length)
 }
@@ -50,28 +47,36 @@ type Syn struct {
 	Address string
 }
 
+// TODO: use json in wnd may cause performance problem.
 type Wnd uint32
 
 type Frame struct {
-	FrameHeader
+	Header
 	Data []byte
 }
 
-func ReadFrame(r io.Reader) (f *Frame, err error) {
+func ReadFrame(r io.Reader, v interface{}) (f *Frame, err error) {
 	f = new(Frame)
-	err = binary.Read(r, binary.BigEndian, &f.FrameHeader)
+	err = binary.Read(r, binary.BigEndian, &f.Header)
 	if err != nil {
 		return
 	}
 
-	f.Data = make([]byte, f.FrameHeader.Length)
+	f.Data = make([]byte, f.Header.Length)
 	n, err := r.Read(f.Data)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
-	if n != int(f.FrameHeader.Length) {
+	if n != int(f.Header.Length) {
 		return nil, ErrShortRead
+	}
+
+	if v != nil {
+		err = f.Unmarshal(v)
+		if err != nil {
+			return
+		}
 	}
 	return
 }
@@ -90,9 +95,11 @@ func SendFrame(fiber Fiber, tp uint8, streamid uint16, v interface{}) (err error
 
 func WriteFrame(stream io.Writer, tp uint8, streamid uint16, v interface{}) (err error) {
 	f := NewFrame(tp, streamid)
-	err = f.Marshal(v)
-	if err != nil {
-		return
+	if v != nil {
+		err = f.Marshal(v)
+		if err != nil {
+			return
+		}
 	}
 	err = f.WriteTo(stream)
 	return
@@ -100,7 +107,7 @@ func WriteFrame(stream io.Writer, tp uint8, streamid uint16, v interface{}) (err
 
 func NewFrame(tp uint8, streamid uint16) (f *Frame) {
 	f = &Frame{
-		FrameHeader: FrameHeader{
+		Header: Header{
 			Type:     tp,
 			Streamid: streamid,
 		},
@@ -116,7 +123,7 @@ func (f *Frame) Marshal(v interface{}) (err error) {
 	if len(f.Data) > (1<<16 - 1) {
 		return ErrFrameOverFlow
 	}
-	f.FrameHeader.Length = uint16(len(f.Data))
+	f.Header.Length = uint16(len(f.Data))
 	return
 }
 
@@ -131,8 +138,8 @@ func (f *Frame) Unmarshal(v interface{}) (err error) {
 
 func (f *Frame) Pack() (b []byte) {
 	var buf bytes.Buffer
-	buf.Grow(int(5 + f.FrameHeader.Length))
-	binary.Write(&buf, binary.BigEndian, f.FrameHeader)
+	buf.Grow(int(5 + f.Header.Length))
+	binary.Write(&buf, binary.BigEndian, f.Header)
 	buf.Write(f.Data)
 	return buf.Bytes()
 }
