@@ -36,6 +36,10 @@ func (fab *Fabric) String() string {
 		fab.Conn.RemoteAddr().String())
 }
 
+func (fab *Fabric) LocalAddrString() string {
+	return fab.Conn.LocalAddr().String()
+}
+
 func (fab *Fabric) GetSize() int {
 	fab.plock.Lock()
 	defer fab.plock.Unlock()

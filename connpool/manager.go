@@ -31,15 +31,14 @@ const (
     </table>
     <table>
       <tr>
-	<th>Sess</th><th>Id</th><th>State</th>
-        <th>Recv-Q</th><th>Send-Q</th><th width="50%">Target</th>
+	<th>Sess</th><th>Id</th><th>State</th><th width="50%">Target</th>
       </tr>
       {{if .GetSize}}
       {{range $tun := .GetTunnels}}
       <tr>
-	<td>{{$tun.String}}</td>
-	<td></td>
+	<td>{{$tun.LocalAddrString}}</td>
 	<td>{{$tun.GetSize}}</td>
+	<td></td>
 	<td>{{$tun.RemoteAddr}}</td>
       </tr>
       {{range $conn := $tun.GetSortedConnections}}
