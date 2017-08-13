@@ -28,7 +28,13 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go sutils.EchoServer(&wg)
-	go tunnel.TunnelServer(nil, &wg)
+	go func() {
+		err := tunnel.RunMockServer(&wg)
+		if err != nil {
+			t.Error(err)
+		}
+		return
+	}()
 	wg.Wait()
 
 	time.Sleep(10 * time.Minute)

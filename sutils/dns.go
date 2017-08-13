@@ -6,6 +6,37 @@ import (
 	"github.com/miekg/dns"
 )
 
+type Lookuper interface {
+	LookupIP(host string) (addrs []net.IP, err error)
+}
+
+type NetLookupIP struct {
+}
+
+func (n *NetLookupIP) LookupIP(host string) (addrs []net.IP, err error) {
+	return net.LookupIP(host)
+}
+
+var DefaultLookuper Lookuper = &NetLookupIP{}
+
+type Exchanger interface {
+	Exchange(*dns.Msg) (*dns.Msg, error)
+}
+
+func init() {
+	conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
+	if err != nil {
+		return
+	}
+
+	var addrs []string
+	for _, srv := range conf.Servers {
+		addrs = append(addrs, net.JoinHostPort(srv, conf.Port))
+	}
+
+	DefaultLookuper = NewDnsLookuper(addrs, "")
+}
+
 func DebugDNS(quiz, resp *dns.Msg) {
 	straddr := ""
 	for _, a := range resp.Answer {

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/miekg/dns"
 	logging "github.com/op/go-logging"
 )
 
@@ -70,34 +69,3 @@ func (td *Tcp4Dialer) DialTimeout(network, address string, timeout time.Duration
 }
 
 var DefaultTcp4Dialer TimeoutDialer = &Tcp4Dialer{}
-
-type Lookuper interface {
-	LookupIP(host string) (addrs []net.IP, err error)
-}
-
-type NetLookupIP struct {
-}
-
-func (n *NetLookupIP) LookupIP(host string) (addrs []net.IP, err error) {
-	return net.LookupIP(host)
-}
-
-var DefaultLookuper Lookuper = &NetLookupIP{}
-
-type Exchanger interface {
-	Exchange(*dns.Msg) (*dns.Msg, error)
-}
-
-func init() {
-	conf, err := dns.ClientConfigFromFile("/etc/resolv.conf")
-	if err != nil {
-		return
-	}
-
-	var addrs []string
-	for _, srv := range conf.Servers {
-		addrs = append(addrs, net.JoinHostPort(srv, conf.Port))
-	}
-
-	DefaultLookuper = NewDnsLookuper(addrs, "")
-}

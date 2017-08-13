@@ -8,34 +8,17 @@ import (
 	"github.com/shell909090/goproxy/sutils"
 )
 
-type Listener struct {
-	net.Listener
-	auth *map[string]string
+type PasswordAuthenticator interface {
+	AuthPass(string, string) bool
 }
 
-func NewListener(original net.Listener, auth *map[string]string) (listener net.Listener) {
-	listener = &Listener{
-		Listener: original,
-		auth:     auth,
-	}
-	return
-}
-
-func (l *Listener) Accept() (conn net.Conn, err error) {
-	conn, err = l.Listener.Accept()
-	if err != nil {
-		return
-	}
-
-	logger.Noticef("connection come from: %s => %s.",
-		conn.RemoteAddr(), conn.LocalAddr())
-
+func AuthConn(auth PasswordAuthenticator, conn net.Conn) (err error) {
 	ti := time.AfterFunc(AUTH_TIMEOUT*time.Millisecond, func() {
 		logger.Noticef(ErrAuthFailed.Error(), conn.RemoteAddr())
 		conn.Close()
 	})
 
-	err = l.onAuth(conn)
+	err = onAuth(auth, conn)
 	if err != nil {
 		logger.Error(err.Error())
 		return
@@ -45,7 +28,7 @@ func (l *Listener) Accept() (conn net.Conn, err error) {
 	return
 }
 
-func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
+func onAuth(author PasswordAuthenticator, stream io.ReadWriteCloser) (err error) {
 	var auth Auth
 	fauth, err := ReadFrame(stream, &auth)
 	if err != nil {
@@ -57,19 +40,16 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 		return ErrUnexpectedPkg
 	}
 
-	if l.auth != nil {
-		password1, ok := (*l.auth)[auth.Username]
-		if !ok || (auth.Password != password1) {
-			logger.Noticef("user %s auth failed with password: %s.",
-				auth.Username, auth.Password)
-			err = WriteFrame(
-				stream, MSG_RESULT, fauth.Header.Streamid, ERR_AUTH)
-			if err != nil {
-				logger.Error(err.Error())
-				return
-			}
-			return ErrAuthFailed
+	if !author.AuthPass(auth.Username, auth.Password) {
+		logger.Noticef("user %s auth failed with password: %s.",
+			auth.Username, auth.Password)
+		err = WriteFrame(
+			stream, MSG_RESULT, fauth.Header.Streamid, ERR_AUTH)
+		if err != nil {
+			logger.Error(err.Error())
+			return
 		}
+		return ErrAuthFailed
 	}
 
 	err = WriteFrame(
@@ -83,19 +63,47 @@ func (l *Listener) onAuth(stream io.ReadWriteCloser) (err error) {
 	return
 }
 
-type Server struct {
-	*Fabric
+type Handler interface {
+	Handle(net.Conn) error
 }
 
-func NewServer(conn net.Conn) (s *Server) {
-	s = &Server{
-		Fabric: NewFabric(conn, 1),
+type Server struct {
+	Handler
+}
+
+func (server *Server) Serve(listener net.Listener) (err error) {
+	var conn net.Conn
+
+	for {
+		conn, err = listener.Accept()
+		if err != nil {
+			logger.Error(err.Error())
+			continue
+		}
+		go func() {
+			defer conn.Close()
+			err = server.Handle(conn)
+			if err != nil {
+				logger.Error(err.Error())
+			}
+		}()
 	}
-	s.dft_fiber = s
 	return
 }
 
-func (s *Server) SendFrame(f *Frame) (err error) {
+type TunnelServer struct {
+	*Fabric
+}
+
+func NewTunnelServer(conn net.Conn) (s *TunnelServer) {
+	s = &TunnelServer{
+		Fabric: NewFabric(conn, 1),
+	}
+	s.Fabric.dft_fiber = s
+	return
+}
+
+func (s *TunnelServer) SendFrame(f *Frame) (err error) {
 	switch f.Header.Type {
 	case MSG_SYN:
 		var syn Syn
@@ -113,7 +121,7 @@ func (s *Server) SendFrame(f *Frame) (err error) {
 	return
 }
 
-func (s *Server) onSyn(streamid uint16, syn *Syn) (err error) {
+func (s *TunnelServer) onSyn(streamid uint16, syn *Syn) (err error) {
 	switch syn.Network {
 	default:
 		err = ErrUnknownNetwork
@@ -125,7 +133,7 @@ func (s *Server) onSyn(streamid uint16, syn *Syn) (err error) {
 	return
 }
 
-func (s *Server) tcp_proxy(streamid uint16, syn *Syn) (err error) {
+func (s *TunnelServer) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 	c := NewConn(s.Fabric)
 	err = c.CheckAndSetStatus(ST_UNKNOWN, ST_SYN_RECV)
 	if err != nil {
@@ -202,7 +210,7 @@ func DialMaybeTimeout(network, address string) (conn net.Conn, err error) {
 }
 
 // never called as default fiber.
-func (s *Server) CloseFiber(streamid uint16) (err error) {
+func (s *TunnelServer) CloseFiber(streamid uint16) (err error) {
 	panic("server's CloseFiber should never been called.")
 	return
 }

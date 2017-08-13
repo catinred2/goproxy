@@ -89,7 +89,13 @@ func TestTunnel(t *testing.T) {
 
 	wg.Add(2)
 	go sutils.EchoServer(&wg)
-	go TunnelServer(t, &wg)
+	go func() {
+		err := RunMockServer(&wg)
+		if err != nil {
+			t.Error(err)
+		}
+		return
+	}()
 	wg.Wait()
 
 	dc := NewDialerCreator(sutils.DefaultTcpDialer, "tcp4", "127.0.0.1:14755", "", "")
