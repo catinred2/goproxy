@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	logging "github.com/op/go-logging"
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 const (
@@ -88,7 +88,7 @@ func TestTunnel(t *testing.T) {
 	SetLogging()
 
 	wg.Add(2)
-	go sutils.EchoServer(&wg)
+	go netutil.EchoServer(&wg)
 	go func() {
 		err := RunMockServer(&wg)
 		if err != nil {
@@ -98,7 +98,7 @@ func TestTunnel(t *testing.T) {
 	}()
 	wg.Wait()
 
-	dc := NewDialerCreator(sutils.DefaultTcpDialer, "tcp4", "127.0.0.1:14755", "", "")
+	dc := NewDialerCreator(netutil.DefaultTcpDialer, "tcp4", "127.0.0.1:14755", "", "")
 
 	client, err := dc.Create()
 	if err != nil {

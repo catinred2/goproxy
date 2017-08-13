@@ -7,7 +7,7 @@ import (
 
 	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 type ServerConfig struct {
@@ -52,7 +52,7 @@ func RunServer(cfg *ServerConfig) (err error) {
 
 	if cfg.ForceIPv4 {
 		logger.Info("force ipv4 dailer.")
-		sutils.DefaultTcpDialer = sutils.DefaultTcp4Dialer
+		netutil.DefaultTcpDialer = netutil.DefaultTcp4Dialer
 	}
 
 	server := connpool.NewServer(&cfg.Auth)

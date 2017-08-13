@@ -11,7 +11,8 @@ import (
 	"strings"
 
 	logging "github.com/op/go-logging"
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/dns"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 var log = logging.MustGetLogger("")
@@ -155,38 +156,38 @@ func ReadIPListFile(filename string) (filter *IPFilter, err error) {
 }
 
 type FilterPair struct {
-	dialer sutils.Dialer
+	dialer netutil.Dialer
 	filter *IPFilter
 }
 
 type FilteredDialer struct {
-	dialer   sutils.Dialer
-	fps      []*FilterPair
-	lookuper sutils.Lookuper
+	dialer netutil.Dialer
+	dns.Resolver
+	fps []*FilterPair
 }
 
-func NewFilteredDialer(dialer sutils.Dialer) (fd *FilteredDialer) {
+func NewFilteredDialer(dialer netutil.Dialer) (fd *FilteredDialer) {
 	fd = &FilteredDialer{
 		dialer:   dialer,
-		lookuper: CreateDNSCache(),
+		Resolver: CreateDNSCache(),
 	}
 	return
 }
 
-func (fd *FilteredDialer) LoadFilter(dialer sutils.Dialer, filename string) (err error) {
+func (fd *FilteredDialer) LoadFilter(dialer netutil.Dialer, filename string) (err error) {
 	fp := &FilterPair{dialer: dialer}
 	fp.filter, err = ReadIPListFile(filename)
 	fd.fps = append(fd.fps, fp)
 	return
 }
 
-func Getaddrs(lookuper sutils.Lookuper, hostname string) (ips []net.IP) {
+func Getaddrs(resolver dns.Resolver, hostname string) (ips []net.IP) {
 	ip := net.ParseIP(hostname)
 	if ip != nil {
 		ips = append(ips, ip)
 		return
 	}
-	ips, err := lookuper.LookupIP(hostname)
+	ips, err := resolver.LookupIP(hostname)
 	if err != nil {
 		log.Error("%s", err.Error())
 	}
@@ -205,7 +206,7 @@ func (fd *FilteredDialer) Dial(network, address string) (conn net.Conn, err erro
 		return
 	}
 
-	addrs := Getaddrs(fd.lookuper, hostname)
+	addrs := Getaddrs(fd.Resolver, hostname)
 	if addrs == nil {
 		return nil, ErrDNSNotFound
 	}

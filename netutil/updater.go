@@ -1,4 +1,4 @@
-package sutils
+package netutil
 
 import (
 	"errors"
@@ -16,8 +16,8 @@ type Updater interface {
 }
 
 var (
-	update_lock     sync.RWMutex
-	update_set map[Updater]struct{}
+	update_lock sync.RWMutex
+	update_set  map[Updater]struct{}
 )
 
 func init() {

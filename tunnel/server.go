@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 type PasswordAuthenticator interface {
@@ -190,7 +190,7 @@ func (s *TunnelServer) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 			return
 		}
 
-		go sutils.CopyLink(conn, c)
+		go netutil.CopyLink(conn, c)
 		logger.Noticef("%s connected to %s:%s.",
 			c.String(), syn.Network, syn.Address)
 		return
@@ -200,11 +200,11 @@ func (s *TunnelServer) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 }
 
 func DialMaybeTimeout(network, address string) (conn net.Conn, err error) {
-	if dialer, ok := sutils.DefaultTcpDialer.(sutils.TimeoutDialer); ok {
+	if dialer, ok := netutil.DefaultTcpDialer.(netutil.TimeoutDialer); ok {
 		conn, err = dialer.DialTimeout(
 			network, address, DIAL_TIMEOUT*time.Second)
 	} else {
-		conn, err = sutils.DefaultTcpDialer.Dial(network, address)
+		conn, err = netutil.DefaultTcpDialer.Dial(network, address)
 	}
 	return
 }

@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/dns"
 )
 
 const maxCache = 512
@@ -38,7 +38,7 @@ func (dc *DNSCache) LookupIP(hostname string) (addrs []net.IP, err error) {
 		return
 	}
 
-	addrs, err = sutils.DefaultLookuper.LookupIP(hostname)
+	addrs, err = dns.DefaultResolver.LookupIP(hostname)
 	if err != nil {
 		return
 	}

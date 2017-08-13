@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 func AbsPath(i string) (o string) {
@@ -21,7 +21,7 @@ func AbsPath(i string) (o string) {
 func TestGoproxy(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
-	go sutils.EchoServer(&wg)
+	go netutil.EchoServer(&wg)
 	wg.Wait()
 
 	srvcfg := ServerConfig{

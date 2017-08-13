@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 var ErrLoadPEM = errors.New("certpool: append cert to pem failed")
@@ -76,7 +76,7 @@ type TlsDialer struct {
 	config *tls.Config
 }
 
-func NewTlsDialer(CertFile, CertKeyFile, RootCAs string) (dialer sutils.Dialer, err error) {
+func NewTlsDialer(CertFile, CertKeyFile, RootCAs string) (dialer netutil.Dialer, err error) {
 	cert, err := tls.LoadX509KeyPair(CertFile, CertKeyFile)
 	if err != nil {
 		return

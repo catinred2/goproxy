@@ -47,16 +47,17 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 }
 
 // FIXME: Network, Address
+// use lock to protect: status, window.
+// SendFrame are not included.
 type Conn struct {
 	fab      *Fabric
-	slock    sync.Mutex
+	lock     sync.RWMutex
 	status   uint8
 	streamid uint16
 	ch_syn   chan uint32
 
 	r_rest []byte
 	rqueue *Queue
-	wlock  sync.RWMutex // protect window, not sendFrame
 	window int32
 	wev    *sync.Cond
 }
@@ -110,8 +111,8 @@ func (c *Conn) Connect(network, address string) (err error) {
 }
 
 func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
-	c.slock.Lock()
-	defer c.slock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.status != old {
 		err = ErrState
 		logger.Error(err.Error())
@@ -189,19 +190,15 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 }
 
 func (c *Conn) writeSlice(data []byte) (err error) {
-	c.slock.Lock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.status != ST_EST {
-		c.slock.Unlock()
 		return ErrBrokenPipe
 	}
-	c.slock.Unlock()
 
 	fdata := NewFrame(MSG_DATA, c.streamid)
 	fdata.Data = data
 	fdata.Header.Length = uint16(len(data))
-
-	c.wlock.Lock()
-	defer c.wlock.Unlock()
 
 	logger.Debugf("write data len: %d, window: %d", len(data), c.window)
 	for c.window-int32(len(data)) < 0 {
@@ -224,9 +221,9 @@ func (c *Conn) Close() (err error) {
 }
 
 func (c *Conn) Reset() {
-	c.slock.Lock()
+	c.lock.Lock()
 	c.status = ST_UNKNOWN
-	c.slock.Unlock()
+	c.lock.Unlock()
 	c.Final()
 	err := c.rqueue.Close()
 	if err != nil {
@@ -246,8 +243,8 @@ func (c *Conn) Final() {
 }
 
 func (c *Conn) closeWrite() (err error) {
-	c.slock.Lock()
-	defer c.slock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	switch c.status {
 	case ST_EST:
@@ -274,8 +271,8 @@ func (c *Conn) closeWrite() (err error) {
 
 func (c *Conn) closeRead() (err error) {
 	logger.Debugf("%s read close.", c.String())
-	c.slock.Lock()
-	defer c.slock.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	switch c.status {
 	case ST_EST:
 		c.status = ST_FIN_RECV
@@ -326,14 +323,14 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		c.Reset()
 
 	case MSG_RESULT:
-		c.slock.Lock()
+		c.lock.Lock()
 		if c.status != ST_SYN_SENT {
-			c.slock.Unlock()
+			c.lock.Unlock()
 			err = ErrState
 			logger.Error(err.Error())
 			return
 		}
-		c.slock.Unlock()
+		c.lock.Unlock()
 
 		var errno uint32
 		err = f.Unmarshal(&errno)
@@ -366,9 +363,9 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 			return
 		}
 
-		c.wlock.Lock()
+		c.lock.Lock()
 		c.window += int32(window)
-		c.wlock.Unlock()
+		c.lock.Unlock()
 		c.wev.Signal()
 		logger.Debugf("%s window + %d = %d.", c.String(), window, c.window)
 	case MSG_FIN:

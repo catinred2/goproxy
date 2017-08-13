@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	logging "github.com/op/go-logging"
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 var logger = logging.MustGetLogger("logger")
@@ -24,12 +24,12 @@ var hopHeaders = []string{
 
 type Proxy struct {
 	transport http.Transport
-	dialer    sutils.Dialer
+	dialer    netutil.Dialer
 	username  string
 	password  string
 }
 
-func NewProxy(dialer sutils.Dialer, username string, password string) (p *Proxy) {
+func NewProxy(dialer netutil.Dialer, username string, password string) (p *Proxy) {
 	p = &Proxy{
 		username:  username,
 		password:  password,
@@ -85,8 +85,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
 
-	buf := sutils.BufferPool.Get().([]byte)
-	defer sutils.BufferPool.Put(buf)
+	buf := netutil.BufferPool.Get().([]byte)
+	defer netutil.BufferPool.Put(buf)
 	_, err = io.CopyBuffer(w, resp.Body, buf)
 	if err != nil {
 		logger.Error("%s", err)
@@ -120,6 +120,6 @@ func (p *Proxy) Connect(w http.ResponseWriter, r *http.Request) {
 	}
 	srcconn.Write([]byte("HTTP/1.0 200 OK\r\n\r\n"))
 
-	sutils.CopyLink(srcconn, dstconn)
+	netutil.CopyLink(srcconn, dstconn)
 	return
 }

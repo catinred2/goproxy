@@ -1,4 +1,4 @@
-package sutils
+package netutil
 
 import (
 	"io"
@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	logger   = logging.MustGetLogger("sutils")
-	DEBUGDNS = true
+	logger = logging.MustGetLogger("sutils")
 )
 
 var (

@@ -7,9 +7,9 @@ import (
 	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
 	"github.com/shell909090/goproxy/ipfilter"
+	"github.com/shell909090/goproxy/netutil"
 	"github.com/shell909090/goproxy/portmapper"
 	"github.com/shell909090/goproxy/proxy"
-	"github.com/shell909090/goproxy/sutils"
 	"github.com/shell909090/goproxy/tunnel"
 )
 
@@ -61,7 +61,7 @@ func httpserver(addr string, handler http.Handler) {
 	}
 }
 
-func (sd *ServerDefine) MakeDialer() (dialer sutils.Dialer, err error) {
+func (sd *ServerDefine) MakeDialer() (dialer netutil.Dialer, err error) {
 	if strings.ToLower(sd.CryptMode) == "tls" {
 		dialer, err = NewTlsDialer(sd.CertFile, sd.CertKeyFile, sd.RootCAs)
 	} else {
@@ -69,13 +69,13 @@ func (sd *ServerDefine) MakeDialer() (dialer sutils.Dialer, err error) {
 		if cipher == "" {
 			cipher = "aes"
 		}
-		dialer, err = cryptconn.NewDialer(sutils.DefaultTcpDialer, cipher, sd.Key)
+		dialer, err = cryptconn.NewDialer(netutil.DefaultTcpDialer, cipher, sd.Key)
 	}
 	return
 }
 
 func RunHttproxy(cfg *ClientConfig) (err error) {
-	var dialer sutils.Dialer
+	var dialer netutil.Dialer
 	pool := connpool.NewDialer(cfg.MinSess, cfg.MaxConn)
 
 	for _, srv := range cfg.Servers {
@@ -92,7 +92,7 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 
 	// FIXME: internal
 	// if cfg.DnsNet == "internal" {
-	// 	sutils.DefaultLookuper = pool
+	// 	netutil.DefaultLookuper = pool
 	// }
 
 	if cfg.AdminIface != "" {
@@ -103,7 +103,7 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 
 	if cfg.Blackfile != "" {
 		fdialer := ipfilter.NewFilteredDialer(dialer)
-		err = fdialer.LoadFilter(sutils.DefaultTcpDialer, cfg.Blackfile)
+		err = fdialer.LoadFilter(netutil.DefaultTcpDialer, cfg.Blackfile)
 		if err != nil {
 			logger.Error("%s", err.Error())
 			return

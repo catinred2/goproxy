@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 	"github.com/shell909090/goproxy/tunnel"
 )
 
@@ -143,7 +143,10 @@ func (dialer *Dialer) Dial(network, address string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	d := tun.(sutils.Dialer)
+	d, ok := tun.(netutil.Dialer)
+	if !ok {
+		panic("tunnel not a dialer in client side.")
+	}
 	return d.Dial(network, address)
 }
 

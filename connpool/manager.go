@@ -5,7 +5,7 @@ package connpool
 // 	"net/http"
 // 	"text/template"
 
-// 	"github.com/shell909090/goproxy/sutils"
+// 	"github.com/shell909090/goproxy/netutil"
 // )
 
 // const (
@@ -121,7 +121,7 @@ package connpool
 // 		return
 // 	}
 
-// 	addrs, err := sutils.DefaultLookuper.LookupIP(hosts[0])
+// 	addrs, err := netutil.DefaultLookuper.LookupIP(hosts[0])
 // 	if err != nil {
 // 		w.WriteHeader(500)
 // 		fmt.Fprintf(w, "error %s", err)

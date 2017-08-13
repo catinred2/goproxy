@@ -5,18 +5,18 @@ import (
 	"net"
 	"time"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 type DialerCreator struct {
-	sutils.Dialer
+	netutil.Dialer
 	network    string
 	serveraddr string
 	username   string
 	password   string
 }
 
-func NewDialerCreator(raw sutils.Dialer, network, serveraddr, username, password string) (dc *DialerCreator) {
+func NewDialerCreator(raw netutil.Dialer, network, serveraddr, username, password string) (dc *DialerCreator) {
 	return &DialerCreator{
 		Dialer:     raw,
 		network:    network,

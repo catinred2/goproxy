@@ -9,7 +9,7 @@ import (
 	"time"
 
 	logging "github.com/op/go-logging"
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 var logger = logging.MustGetLogger("portmap")
@@ -53,7 +53,7 @@ func (upm *UdpPortMapper) RemovePorts(addr net.Addr) {
 	return
 }
 
-func (upm *UdpPortMapper) UdpPortmap(pm PortMap, dialer sutils.Dialer) (err error) {
+func (upm *UdpPortMapper) UdpPortmap(pm PortMap, dialer netutil.Dialer) (err error) {
 	laddr, err := net.ResolveUDPAddr(pm.Net, pm.Src)
 	if err != nil {
 		return
@@ -214,7 +214,7 @@ func (umc *UdpMapperConn) SendHandler() {
 	}
 }
 
-func TcpPortmap(pm PortMap, dialer sutils.Dialer) (err error) {
+func TcpPortmap(pm PortMap, dialer netutil.Dialer) (err error) {
 	lsock, err := net.Listen(pm.Net, pm.Src)
 	if err != nil {
 		return
@@ -236,11 +236,11 @@ func TcpPortmap(pm PortMap, dialer sutils.Dialer) (err error) {
 			continue
 		}
 
-		go sutils.CopyLink(dconn, sconn)
+		go netutil.CopyLink(dconn, sconn)
 	}
 }
 
-func CreatePortmap(pm PortMap, dialer sutils.Dialer) {
+func CreatePortmap(pm PortMap, dialer netutil.Dialer) {
 	var err error
 	if strings.HasPrefix(pm.Net, "udp") {
 		upm := NewUdpPortMapper()

@@ -4,15 +4,15 @@ import (
 	"crypto/cipher"
 	"net"
 
-	"github.com/shell909090/goproxy/sutils"
+	"github.com/shell909090/goproxy/netutil"
 )
 
 type Dialer struct {
-	sutils.Dialer
+	netutil.Dialer
 	block cipher.Block
 }
 
-func NewDialer(dialer sutils.Dialer, method string, key string) (d *Dialer, err error) {
+func NewDialer(dialer netutil.Dialer, method string, key string) (d *Dialer, err error) {
 	log.Info("Crypt Dialer with %s preparing.", method)
 	c, err := NewBlock(method, key)
 	if err != nil {

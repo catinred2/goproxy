@@ -1,4 +1,4 @@
-package sutils
+package netutil
 
 import (
 	"io"
