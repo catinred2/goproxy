@@ -51,7 +51,7 @@ func copyHeader(dst, src http.Header) {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	logger.Info("http: %s %s", req.Method, req.URL)
+	logger.Infof("http: %s %s", req.Method, req.URL)
 
 	if p.username != "" && p.password != "" {
 		if !BasicAuth(w, req, p.username, p.password) {
@@ -89,7 +89,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer netutil.BufferPool.Put(buf)
 	_, err = io.CopyBuffer(w, resp.Body, buf)
 	if err != nil {
-		logger.Error("%s", err)
+		logger.Error(err.Error())
 		return
 	}
 	return
@@ -103,7 +103,7 @@ func (p *Proxy) Connect(w http.ResponseWriter, r *http.Request) {
 	}
 	srcconn, _, err := hij.Hijack()
 	if err != nil {
-		logger.Error("Cannot hijack connection ", err)
+		logger.Errorf("Cannot hijack connection: %s", err.Error())
 		return
 	}
 	defer srcconn.Close()
@@ -114,7 +114,7 @@ func (p *Proxy) Connect(w http.ResponseWriter, r *http.Request) {
 	}
 	dstconn, err := p.dialer.Dial("tcp", host)
 	if err != nil {
-		logger.Error("dial failed: %s", err.Error())
+		logger.Errorf("dial failed: %s", err.Error())
 		srcconn.Write([]byte("HTTP/1.0 502 OK\r\n\r\n"))
 		return
 	}

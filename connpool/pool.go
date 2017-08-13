@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	DIAL_RETRY   = 2
-	AUTH_TIMEOUT = 10
+	BALANCE_INTERVAL = 60
+	DIAL_RETRY       = 2
+	AUTH_TIMEOUT     = 10
 )
 
 var (
@@ -49,6 +50,20 @@ func (pool *Pool) GetSize() int {
 	pool.lock.RLock()
 	defer pool.lock.RUnlock()
 	return len(pool.tunpool)
+}
+
+func (pool *Pool) getMinimum() (tun tunnel.Tunnel, size int) {
+	size = -1
+	pool.lock.RLock()
+	defer pool.lock.RUnlock()
+	for t, _ := range pool.tunpool {
+		n := t.GetSize()
+		if size == -1 || n < size {
+			tun = t
+			size = n
+		}
+	}
+	return
 }
 
 func (pool *Pool) GetSessions() (tuns []tunnel.Tunnel) {

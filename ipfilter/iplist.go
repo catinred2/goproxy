@@ -15,7 +15,7 @@ import (
 	"github.com/shell909090/goproxy/netutil"
 )
 
-var log = logging.MustGetLogger("")
+var logger = logging.MustGetLogger("ipfilter")
 
 var ErrDNSNotFound = errors.New("dns not found")
 
@@ -28,7 +28,7 @@ type IPFilter struct {
 func ListConatins(iplist []*net.IPNet, ip net.IP) bool {
 	for _, ipnet := range iplist {
 		if ipnet.Contains(ip) {
-			log.Debug("%s matched %s.", ip.String(), ipnet.String())
+			logger.Debugf("%s matched %s.", ip.String(), ipnet.String())
 			return true
 		}
 	}
@@ -58,7 +58,7 @@ func (f IPFilter) Contain(ip net.IP) bool {
 		return true
 	}
 
-	log.Debug("%s not match anything.", ip.String())
+	logger.Debugf("%s not match anything.", ip.String())
 	return false
 }
 
@@ -104,14 +104,14 @@ QUIT:
 			}
 		case nil:
 		default:
-			log.Error("%s", err)
+			logger.Error(err.Error())
 			return nil, err
 		}
 		line = strings.Trim(line, "\r\n ")
 
 		ipnet, err = ParseLine(line)
 		if err != nil {
-			log.Error("%s", err)
+			logger.Error(err.Error())
 			return nil, err
 		}
 
@@ -129,18 +129,19 @@ QUIT:
 		counter++
 	}
 
-	log.Notice("blacklist loaded %d record(s), %d index1, %d index2 and %d no indexed.",
+	logger.Noticef(
+		"blacklist loaded %d record(s), %d index1, %d index2 and %d no indexed.",
 		counter, len(filter.idx1), len(filter.idx2), len(filter.rest))
 	return
 }
 
 func ReadIPListFile(filename string) (filter *IPFilter, err error) {
-	log.Info("load iplist from file %s.", filename)
+	logger.Infof("load iplist from file %s.", filename)
 
 	var f io.ReadCloser
 	f, err = os.Open(filename)
 	if err != nil {
-		log.Error("%s", err)
+		logger.Error(err.Error())
 		return
 	}
 	defer f.Close()
@@ -148,7 +149,7 @@ func ReadIPListFile(filename string) (filter *IPFilter, err error) {
 	if strings.HasSuffix(filename, ".gz") {
 		f, err = gzip.NewReader(f)
 		if err != nil {
-			log.Error("%s", err)
+			logger.Error(err.Error())
 			return
 		}
 	}
@@ -190,20 +191,20 @@ func Getaddrs(resolver dns.Resolver, hostname string) (ips []net.IP) {
 	}
 	ips, err := resolver.LookupIP(hostname)
 	if err != nil {
-		log.Error("%s", err.Error())
+		logger.Error(err.Error())
 	}
 	return
 }
 
 func (fd *FilteredDialer) Dial(network, address string) (conn net.Conn, err error) {
-	log.Info("filter dial: %s", address)
+	logger.Infof("filter dial: %s", address)
 	if len(fd.fps) == 0 {
 		return fd.dialer.Dial(network, address)
 	}
 
 	hostname, _, err := net.SplitHostPort(address)
 	if err != nil {
-		log.Error("%s", err.Error())
+		logger.Error(err.Error())
 		return
 	}
 

@@ -34,8 +34,6 @@ func NewHttpsDns(dialer netutil.Dialer) (httpsdns *HttpsDns, err error) {
 	transport := &http2.Transport{}
 	if dialer != nil {
 		transport.DialTLS = func(network, address string, cfg *tls.Config) (tlsconn net.Conn, err error) {
-			// FIXME: what kind of address it is?
-			// will it loop back?
 			conn, err := dialer.Dial(network, address)
 			if err != nil {
 				return

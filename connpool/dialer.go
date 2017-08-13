@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/shell909090/goproxy/netutil"
 	"github.com/shell909090/goproxy/tunnel"
@@ -38,34 +39,48 @@ func (dialer *Dialer) AddDialerCreator(orig *tunnel.DialerCreator) {
 	dialer.creators = append(dialer.creators, orig)
 }
 
+func (dialer *Dialer) loop() {
+	for {
+		err := dialer.balance()
+		if err != nil {
+			logger.Error(err.Error())
+		}
+		time.Sleep(60 * time.Second)
+	}
+}
+
+func (dialer *Dialer) balance() (err error) {
+	tsize := dialer.GetSize()
+	if tsize < dialer.MinSess {
+		err = dialer.createSession()
+		if err != nil {
+			return
+		}
+	}
+
+	_, fsize := dialer.getMinimum()
+	if fsize > dialer.MaxConn {
+		err = dialer.createSession()
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
 // Get one or create one.
 func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
-	tsize := dialer.GetSize()
-
-	if tsize == 0 {
-		err = dialer.createSession(func() bool {
-			return dialer.GetSize() == 0
-		})
+	if dialer.GetSize() == 0 {
+		err = dialer.createSession()
 		if err != nil {
-			return nil, err
+			return
 		}
-		tsize = dialer.GetSize()
 	}
 
-	tun, fsize := dialer.getMinimum()
+	tun, _ = dialer.getMinimum()
 	if tun == nil {
-		return nil, ErrNoSession
-	}
-
-	if fsize > dialer.MaxConn || tsize < dialer.MinSess {
-		go dialer.createSession(func() bool {
-			if dialer.GetSize() < dialer.MinSess {
-				return true
-			}
-			// normally, size == -1 should never happen
-			_, fsize := dialer.getMinimum()
-			return fsize > dialer.MaxConn
-		})
+		err = ErrNoSession
+		return
 	}
 	return
 }
@@ -74,13 +89,9 @@ func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
 // Repeat for DIAL_RETRY times.
 // Each time it will take 2 ^ (net.ipv4.tcp_syn_retries + 1) - 1 second(s).
 // eg. net.ipv4.tcp_syn_retries = 4, connect will timeout in 2 ^ (4 + 1) -1 = 31s.
-func (dialer *Dialer) createSession(checker func() bool) (err error) {
+func (dialer *Dialer) createSession() (err error) {
 	var tun tunnel.Tunnel
-	dialer.lock.Lock()
-	if checker != nil && !checker() {
-		dialer.lock.Unlock()
-		return
-	}
+	dialer.lock.RLock()
 
 	start := rand.Int()
 	end := start + DIAL_RETRY*len(dialer.creators)
@@ -93,7 +104,7 @@ func (dialer *Dialer) createSession(checker func() bool) (err error) {
 		}
 		break
 	}
-	dialer.lock.Unlock()
+	dialer.lock.RUnlock()
 
 	if err != nil {
 		logger.Critical("can't connect to any server, quit.")
@@ -103,20 +114,6 @@ func (dialer *Dialer) createSession(checker func() bool) (err error) {
 
 	dialer.Add(tun)
 	go dialer.sessRun(tun)
-	return
-}
-
-func (dialer *Dialer) getMinimum() (tun tunnel.Tunnel, size int) {
-	size = -1
-	dialer.lock.RLock()
-	defer dialer.lock.RUnlock()
-	for t, _ := range dialer.tunpool {
-		n := t.GetSize()
-		if size == -1 || n < size {
-			tun = t
-			size = n
-		}
-	}
 	return
 }
 

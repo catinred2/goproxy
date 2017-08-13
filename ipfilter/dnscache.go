@@ -34,7 +34,7 @@ func (dc *DNSCache) LookupIP(hostname string) (addrs []net.IP, err error) {
 		if !ok {
 			err = errType
 		}
-		log.Debug("hostname %s cached.", hostname)
+		logger.Debugf("hostname %s cached.", hostname)
 		return
 	}
 
@@ -45,7 +45,7 @@ func (dc *DNSCache) LookupIP(hostname string) (addrs []net.IP, err error) {
 
 	if len(addrs) > 0 {
 		dc.lock.Lock()
-		log.Notice("hostname %s in caching.", hostname)
+		logger.Noticef("hostname %s in caching.", hostname)
 		dc.cache.Add(hostname, addrs)
 		dc.lock.Unlock()
 	}
