@@ -6,6 +6,7 @@ import (
 
 	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
+	"github.com/shell909090/goproxy/dns"
 	"github.com/shell909090/goproxy/ipfilter"
 	"github.com/shell909090/goproxy/netutil"
 	"github.com/shell909090/goproxy/portmapper"
@@ -90,10 +91,13 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 
 	dialer = pool
 
-	// FIXME: internal
-	// if cfg.DnsNet == "internal" {
-	// 	netutil.DefaultLookuper = pool
-	// }
+	// TODO: open up dns server in client side
+	if cfg.DnsNet == "https" {
+		dns.DefaultResolver, err = dns.NewHttpsDns(dialer)
+		if err != nil {
+			return
+		}
+	}
 
 	if cfg.AdminIface != "" {
 		mux := http.NewServeMux()
@@ -111,6 +115,7 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 		dialer = fdialer
 	}
 
+	// FIXME: port mapper?
 	for _, pm := range cfg.Portmaps {
 		go portmapper.CreatePortmap(pm, dialer)
 	}

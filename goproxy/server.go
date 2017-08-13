@@ -7,6 +7,7 @@ import (
 
 	"github.com/shell909090/goproxy/connpool"
 	"github.com/shell909090/goproxy/cryptconn"
+	"github.com/shell909090/goproxy/dns"
 	"github.com/shell909090/goproxy/netutil"
 )
 
@@ -35,6 +36,13 @@ func LoadServerConfig(basecfg *Config) (cfg *ServerConfig, err error) {
 }
 
 func RunServer(cfg *ServerConfig) (err error) {
+	if cfg.DnsNet == "https" {
+		dns.DefaultResolver, err = dns.NewHttpsDns(nil)
+		if err != nil {
+			return
+		}
+	}
+
 	listener, err := net.Listen("tcp4", cfg.Listen)
 	if err != nil {
 		return

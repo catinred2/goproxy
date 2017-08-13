@@ -8,6 +8,7 @@ import (
 	"os"
 
 	logging "github.com/op/go-logging"
+	"github.com/shell909090/goproxy/dns"
 )
 
 var logger = logging.MustGetLogger("")
@@ -91,19 +92,18 @@ func main() {
 		return
 	}
 
-	// switch basecfg.DnsNet {
-	// case "internal":
+	switch basecfg.DnsNet {
 	// case "https":
 	// 	sutils.DefaultLookuper, err = sutils.NewGoogleHttpsDns()
 	// 	if err != nil {
 	// 		return
 	// 	}
-	// case "udp", "tcp":
-	// 	if len(basecfg.DnsAddrs) > 0 {
-	// 		sutils.DefaultLookuper = sutils.NewDnsLookuper(
-	// 			basecfg.DnsAddrs, basecfg.DnsNet)
-	// 	}
-	// }
+	case "udp", "tcp":
+		if len(basecfg.DnsAddrs) > 0 {
+			dns.DefaultResolver = dns.NewDns(
+				basecfg.DnsAddrs, basecfg.DnsNet)
+		}
+	}
 
 	switch basecfg.Mode {
 	case "server":

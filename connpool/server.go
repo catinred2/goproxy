@@ -13,6 +13,9 @@ type Server struct {
 }
 
 func NewServer(auth *map[string]string) (server *Server) {
+	if auth != nil && len(*auth) == 0 {
+		auth = nil
+	}
 	server = &Server{
 		Pool: NewPool(),
 		auth: auth,

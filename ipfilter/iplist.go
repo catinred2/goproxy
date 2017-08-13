@@ -61,6 +61,7 @@ func (f IPFilter) Contain(ip net.IP) bool {
 	log.Debug("%s not match anything.", ip.String())
 	return false
 }
+
 func ParseLine(line string) (ipnet *net.IPNet, err error) {
 	_, ipnet, err = net.ParseCIDR(line)
 	if err == nil {
