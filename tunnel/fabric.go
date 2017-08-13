@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sort"
 	"sync"
 	"time"
 )
@@ -39,6 +40,30 @@ func (fab *Fabric) GetSize() int {
 	fab.plock.Lock()
 	defer fab.plock.Unlock()
 	return len(fab.weaves)
+}
+
+func (fab *Fabric) getConnections() (conns []*Conn) {
+	fab.plock.RLock()
+	defer fab.plock.RUnlock()
+
+	for _, f := range fab.weaves {
+		if c, ok := f.(*Conn); ok {
+			conns = append(conns, c)
+		}
+	}
+	return
+}
+
+type ConnSlice []*Conn
+
+func (cs ConnSlice) Len() int           { return len(cs) }
+func (cs ConnSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
+func (cs ConnSlice) Less(i, j int) bool { return cs[i].streamid < cs[j].streamid }
+
+func (fab *Fabric) GetSortedConnections() (conns ConnSlice) {
+	conns = fab.getConnections()
+	sort.Sort(conns)
+	return
 }
 
 func (fab *Fabric) PutIntoNextId(f Fiber) (id uint16, err error) {

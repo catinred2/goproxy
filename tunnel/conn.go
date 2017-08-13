@@ -60,6 +60,9 @@ type Conn struct {
 	rqueue *Queue
 	window int32
 	wev    *sync.Cond
+
+	Network string
+	Address string
 }
 
 func NewConn(fab *Fabric) (c *Conn) {
@@ -75,6 +78,33 @@ func NewConn(fab *Fabric) (c *Conn) {
 
 func (c *Conn) String() (s string) {
 	return fmt.Sprintf("%s(%d)", c.fab.String(), c.streamid)
+}
+
+func (c *Conn) GetStreamId() uint16 {
+	return c.streamid
+}
+
+func (c *Conn) GetStatusString() (st string) {
+	c.lock.Lock()
+	status := c.status
+	c.lock.Unlock()
+	switch status {
+	case ST_SYN_RECV:
+		return "SYN_RECV"
+	case ST_SYN_SENT:
+		return "SYN_SENT"
+	case ST_EST:
+		return "ESTAB"
+	case ST_FIN_RECV:
+		return "FIN_RECV"
+	case ST_FIN_SENT:
+		return "FIN_SENT"
+	}
+	return "UNKNOWN"
+}
+
+func (c *Conn) GetAddress() (s string) {
+	return fmt.Sprintf("%s:%s", c.Network, c.Address)
 }
 
 func (c *Conn) Connect(network, address string) (err error) {
@@ -107,6 +137,9 @@ func (c *Conn) Connect(network, address string) (err error) {
 		return
 	}
 	err = c.CheckAndSetStatus(ST_SYN_SENT, ST_EST)
+
+	c.Network = network
+	c.Address = address
 	return
 }
 

@@ -146,11 +146,3 @@ func (dialer *Dialer) Dial(network, address string) (net.Conn, error) {
 	}
 	return d.Dial(network, address)
 }
-
-// func (dialer *Dialer) LookupIP(host string) (addrs []net.IP, err error) {
-// 	sess, err := dialer.Get()
-// 	if err != nil {
-// 		return
-// 	}
-// 	return sess.LookupIP(host)
-// }

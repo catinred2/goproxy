@@ -141,6 +141,8 @@ func (s *TunnelServer) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 		return
 	}
 	c.streamid = streamid
+	c.Network = syn.Network
+	c.Address = syn.Address
 
 	err = s.Fabric.PutIntoId(streamid, c)
 	if err != nil {

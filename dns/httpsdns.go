@@ -3,9 +3,13 @@ package dns
 import (
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -15,6 +19,12 @@ import (
 	"github.com/shell909090/goproxy/netutil"
 )
 
+var (
+	ErrParseIP = errors.New("can't get myip.")
+	reip       = regexp.MustCompile("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")
+	myIP       string
+)
+
 func ParseUint(s string) (n uint64) {
 	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
@@ -22,6 +32,36 @@ func ParseUint(s string) (n uint64) {
 		return
 	}
 	return
+}
+
+func getMyIP() (ip string, err error) {
+	resp, err := http.Get("http://myip.ipip.net")
+	if err != nil {
+		log.Fatalf("get myip err: %s.", err.Error())
+		return
+	}
+
+	p, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("myip read err: %s.", err.Error())
+		return
+	}
+
+	ipstrs := reip.FindAllString(string(p), 1)
+	if ipstrs == nil {
+		err = ErrParseIP
+		return
+	}
+
+	return ipstrs[0], nil
+}
+
+func init() {
+	var err error
+	myIP, err = getMyIP()
+	if err != nil {
+		panic(err)
+	}
 }
 
 type HttpsDns struct {
@@ -76,6 +116,10 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 				}
 			}
 		}
+	}
+
+	if subnet == "" {
+		subnet = myIP
 	}
 
 	jsonresp, err := handler.QueryHttpsDNS(

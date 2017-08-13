@@ -66,7 +66,7 @@ func (pool *Pool) getMinimum() (tun tunnel.Tunnel, size int) {
 	return
 }
 
-func (pool *Pool) GetSessions() (tuns []tunnel.Tunnel) {
+func (pool *Pool) GetTunnels() (tuns []tunnel.Tunnel) {
 	pool.lock.RLock()
 	defer pool.lock.RUnlock()
 	for t, _ := range pool.tunpool {
@@ -92,9 +92,9 @@ func (pool *Pool) Remove(tun tunnel.Tunnel) (err error) {
 }
 
 func (pool *Pool) Register(mux *http.ServeMux) {
-	// mux.HandleFunc("/", pool.HandlerMain)
-	// mux.HandleFunc("/lookup", HandlerLookup)
-	// mux.HandleFunc("/cutoff", pool.HandlerCutoff)
+	mux.HandleFunc("/", pool.HandlerMain)
+	mux.HandleFunc("/lookup", HandlerLookup)
+	mux.HandleFunc("/cutoff", pool.HandlerCutoff)
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
