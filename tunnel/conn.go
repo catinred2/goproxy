@@ -46,7 +46,6 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 	return
 }
 
-// FIXME: Network, Address
 // use lock to protect: status, window.
 // SendFrame are not included.
 type Conn struct {
@@ -103,7 +102,7 @@ func (c *Conn) GetStatusString() (st string) {
 	return "UNKNOWN"
 }
 
-func (c *Conn) GetAddress() (s string) {
+func (c *Conn) GetTarget() (s string) {
 	return fmt.Sprintf("%s:%s", c.Network, c.Address)
 }
 

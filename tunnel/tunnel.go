@@ -13,7 +13,6 @@ const (
 	WINDOWSIZE    = 4 * 1024 * 1024
 )
 
-// FIXME:
 const (
 	ERR_NONE = iota
 	ERR_AUTH

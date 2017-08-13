@@ -22,7 +22,7 @@ import (
 var (
 	ErrParseIP = errors.New("can't get myip.")
 	reip       = regexp.MustCompile("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")
-	myIP       string
+	MyIP       string
 )
 
 func ParseUint(s string) (n uint64) {
@@ -58,7 +58,7 @@ func getMyIP() (ip string, err error) {
 
 func init() {
 	var err error
-	myIP, err = getMyIP()
+	MyIP, err = getMyIP()
 	if err != nil {
 		panic(err)
 	}
@@ -119,7 +119,7 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 	}
 
 	if subnet == "" {
-		subnet = myIP
+		subnet = MyIP
 	}
 
 	jsonresp, err := handler.QueryHttpsDNS(

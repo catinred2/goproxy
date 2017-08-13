@@ -2,8 +2,8 @@ package connpool
 
 import (
 	"fmt"
+	"html/template"
 	"net/http"
-	"text/template"
 
 	"github.com/shell909090/goproxy/dns"
 )
@@ -20,7 +20,10 @@ const (
   <body>
     <table>
       <tr>
-        <td><a href="cutoff">cutoff</a></td>
+        <td width="50%"><a href="cutoff">cutoff</a></td>
+        <td width="50%">my ip: {{.GetMyIP}}</td>
+      </tr>
+      <tr>
 	<td>
 	  <form action="lookup">
 	    <input type="text" name="host" value="www.google.com">
@@ -36,7 +39,7 @@ const (
       {{if .GetSize}}
       {{range $tun := .GetTunnels}}
       <tr>
-	<td>{{$tun.LocalAddrString}}</td>
+	<td>{{$tun.LocalAddr}}</td>
 	<td>{{$tun.GetSize}}</td>
 	<td></td>
 	<td>{{$tun.RemoteAddr}}</td>
@@ -47,7 +50,7 @@ const (
 	<td></td>
 	<td>{{$conn.GetStreamId}}</td>
 	<td>{{$conn.GetStatusString}}</td>
-	<td>{{$conn.GetAddress}}</td>
+	<td>{{$conn.GetTarget}}</td>
 	{{else}}
 	<td></td>
 	<td>half closed</td>
@@ -105,6 +108,10 @@ func (pool *Pool) HandlerMain(w http.ResponseWriter, req *http.Request) {
 		logger.Error(err.Error())
 	}
 	return
+}
+
+func (pool *Pool) GetMyIP() string {
+	return dns.MyIP
 }
 
 func HandlerLookup(w http.ResponseWriter, req *http.Request) {
