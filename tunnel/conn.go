@@ -107,6 +107,9 @@ func (c *Conn) GetTarget() (s string) {
 }
 
 func (c *Conn) Connect(network, address string) (err error) {
+	c.Network = network
+	c.Address = address
+
 	c.ch_syn = make(chan uint32, 0)
 	defer func() {
 		c.ch_syn = nil
@@ -136,9 +139,6 @@ func (c *Conn) Connect(network, address string) (err error) {
 		return
 	}
 	err = c.CheckAndSetStatus(ST_SYN_SENT, ST_EST)
-
-	c.Network = network
-	c.Address = address
 	return
 }
 
