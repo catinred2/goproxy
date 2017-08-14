@@ -171,7 +171,7 @@ func (fab *Fabric) Loop() {
 			logger.Error(err.Error())
 			return
 		case io.EOF:
-			logger.Infof("%s read EOF", fab.String())
+			logger.Warningf("%s connection closed.", fab.String())
 			return
 		case nil:
 		}

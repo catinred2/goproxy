@@ -19,9 +19,9 @@ clean:
 test:
 	# go test github.com/shell909090/goproxy/msocks
 	go test github.com/shell909090/goproxy/tunnel
-	go test github.com/shell909090/goproxy/dns
+	# go test github.com/shell909090/goproxy/dns
 	go test github.com/shell909090/goproxy/ipfilter
-	go test github.com/shell909090/goproxy/goproxy
+	# go test github.com/shell909090/goproxy/goproxy
 
 install-dep:
 	go get github.com/shell909090/goproxy
