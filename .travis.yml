@@ -2,7 +2,9 @@ language: go
 go:
   - 1.8
   - tip
-script: make build
+script:
+  - make build
+  - make test
 install:
   - go get github.com/op/go-logging
   - go get github.com/miekg/dns

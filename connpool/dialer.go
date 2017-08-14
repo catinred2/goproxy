@@ -52,7 +52,7 @@ func (dialer *Dialer) loop() {
 func (dialer *Dialer) balance() (err error) {
 	tsize := dialer.GetSize()
 	if tsize < dialer.MinSess {
-		err = dialer.createSession()
+		err = dialer.newTunnel(false)
 		if err != nil {
 			return
 		}
@@ -60,7 +60,7 @@ func (dialer *Dialer) balance() (err error) {
 
 	_, fsize := dialer.getMinimum()
 	if fsize > dialer.MaxConn {
-		err = dialer.createSession()
+		err = dialer.newTunnel(false)
 		if err != nil {
 			return
 		}
@@ -71,7 +71,7 @@ func (dialer *Dialer) balance() (err error) {
 // Get one or create one.
 func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
 	if dialer.GetSize() == 0 {
-		err = dialer.createSession()
+		err = dialer.newTunnel(true)
 		if err != nil {
 			return
 		}
@@ -89,9 +89,14 @@ func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
 // Repeat for DIAL_RETRY times.
 // Each time it will take 2 ^ (net.ipv4.tcp_syn_retries + 1) - 1 second(s).
 // eg. net.ipv4.tcp_syn_retries = 4, connect will timeout in 2 ^ (4 + 1) -1 = 31s.
-func (dialer *Dialer) createSession() (err error) {
+func (dialer *Dialer) newTunnel(first bool) (err error) {
 	var tun tunnel.Tunnel
 	dialer.lock.RLock()
+	if first && dialer.GetSize() != 0 {
+		dialer.lock.RUnlock()
+		logger.Debug("create first tunnel but already have one.")
+		return
+	}
 
 	start := rand.Int()
 	end := start + DIAL_RETRY*len(dialer.creators)
@@ -131,7 +136,7 @@ func (dialer *Dialer) sessRun(tun tunnel.Tunnel) {
 	}()
 
 	tun.Loop()
-	logger.Warning("session runtime quit.")
+	logger.Info("session runtime quit.")
 	return
 }
 

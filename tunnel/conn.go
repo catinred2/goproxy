@@ -50,7 +50,7 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 // SendFrame are not included.
 type Conn struct {
 	fab      *Fabric
-	lock     sync.RWMutex
+	lock     sync.Mutex
 	status   uint8
 	streamid uint16
 	ch_syn   chan uint32
@@ -189,13 +189,22 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 		}
 	}
 
+	logger.Debugf("%s readed %d bytes.", c.String(), n)
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	// send wnd renew after fin will cause unmapped frame.
+	switch c.status {
+	case ST_FIN_SENT, ST_UNKNOWN:
+		return
+	}
+
 	err = SendFrame(c.fab, MSG_WND, c.streamid, uint32(n))
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
-
-	logger.Debugf("%s readed %d bytes.", c.String(), n)
 	return
 }
 
@@ -208,9 +217,14 @@ func (c *Conn) Write(data []byte) (n int, err error) {
 		}
 
 		err = c.writeSlice(data[:size])
-		if err != nil {
+		switch err {
+		default:
 			logger.Error(err.Error())
 			return
+		case io.EOF:
+			logger.Infof("%s connection closed.")
+			return
+		case nil:
 		}
 		logger.Debugf("%s send chunk [%d:%d+%d].", c.String(), n, n, size)
 
@@ -240,7 +254,6 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 
 	err = c.fab.SendFrame(fdata)
 	if err != nil {
-		logger.Info(err.Error())
 		return
 	}
 
