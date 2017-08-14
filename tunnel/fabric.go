@@ -42,26 +42,24 @@ func (fab *Fabric) GetSize() int {
 	return len(fab.weaves)
 }
 
-func (fab *Fabric) getConnections() (conns []*Conn) {
-	fab.plock.RLock()
-	defer fab.plock.RUnlock()
-
-	for _, f := range fab.weaves {
-		if c, ok := f.(*Conn); ok {
-			conns = append(conns, c)
-		}
-	}
-	return
-}
-
 type ConnSlice []*Conn
 
 func (cs ConnSlice) Len() int           { return len(cs) }
 func (cs ConnSlice) Swap(i, j int)      { cs[i], cs[j] = cs[j], cs[i] }
 func (cs ConnSlice) Less(i, j int) bool { return cs[i].streamid < cs[j].streamid }
 
-func (fab *Fabric) GetSortedConnections() (conns ConnSlice) {
-	conns = fab.getConnections()
+func (fab *Fabric) GetConnections() (conns ConnSlice) {
+	conns = func() (conns []*Conn) {
+		fab.plock.RLock()
+		defer fab.plock.RUnlock()
+
+		for _, f := range fab.weaves {
+			if c, ok := f.(*Conn); ok {
+				conns = append(conns, c)
+			}
+		}
+		return
+	}()
 	sort.Sort(conns)
 	return
 }

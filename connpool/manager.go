@@ -44,7 +44,7 @@ const (
 	<td></td>
 	<td>{{$tun.RemoteAddr}}</td>
       </tr>
-      {{range $conn := $tun.GetSortedConnections}}
+      {{range $conn := $tun.GetConnections}}
       <tr>
 	{{with $conn}}
 	<td></td>
@@ -91,7 +91,7 @@ var (
 
 func init() {
 	var err error
-	tmpl_sess, err = template.New("session").Parse(str_sess)
+	tmpl_sess, err = template.New("main").Parse(str_sess)
 	if err != nil {
 		panic(err)
 	}

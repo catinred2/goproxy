@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/pprof"
+	"sort"
 	"sync"
 
 	logging "github.com/op/go-logging"
@@ -66,12 +67,24 @@ func (pool *Pool) getMinimum() (tun tunnel.Tunnel, size int) {
 	return
 }
 
-func (pool *Pool) GetTunnels() (tuns []tunnel.Tunnel) {
-	pool.lock.RLock()
-	defer pool.lock.RUnlock()
-	for t, _ := range pool.tunpool {
-		tuns = append(tuns, t)
-	}
+type TunSlice []tunnel.Tunnel
+
+func (ts TunSlice) Len() int      { return len(ts) }
+func (ts TunSlice) Swap(i, j int) { ts[i], ts[j] = ts[j], ts[i] }
+func (ts TunSlice) Less(i, j int) bool {
+	return ts[i].String() < ts[j].String()
+}
+
+func (pool *Pool) GetTunnels() (tuns TunSlice) {
+	tuns = func() (tuns []tunnel.Tunnel) {
+		pool.lock.RLock()
+		defer pool.lock.RUnlock()
+		for t, _ := range pool.tunpool {
+			tuns = append(tuns, t)
+		}
+		return
+	}()
+	sort.Sort(tuns)
 	return
 }
 

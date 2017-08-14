@@ -11,10 +11,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/op/go-logging"
+	logging "github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger("")
+var logger = logging.MustGetLogger("")
 
 const (
 	KEYSIZE           = 16
@@ -23,7 +23,7 @@ const (
 )
 
 func NewBlock(method string, key string) (c cipher.Block, err error) {
-	log.Debug("Crypt Wrapper with %s preparing.", method)
+	logger.Debugf("Crypt Wrapper with %s preparing.", method)
 	byteKey, err := base64.StdEncoding.DecodeString(key)
 	if err != nil {
 		return
@@ -65,7 +65,7 @@ func SentIV(conn net.Conn, n int) (iv []byte, err error) {
 		return
 	}
 
-	log.Debug("sent iv: %x", iv)
+	logger.Debugf("sent iv: %x", iv)
 	return
 }
 
@@ -79,7 +79,7 @@ func RecvIV(conn net.Conn, n int) (iv []byte, err error) {
 		return
 	}
 	conn.SetReadDeadline(time.Time{})
-	log.Debug("recv iv: %x", iv)
+	logger.Debugf("recv iv: %x", iv)
 	return
 }
 
@@ -88,11 +88,10 @@ func XOR(n int, a []byte, b []byte) (r []byte) {
 	for i := 0; i < n; i++ {
 		r[i] = a[i] ^ b[i]
 	}
-	log.Debug("xor iv: %x", r)
+	logger.Debugf("xor iv: %x", r)
 	return
 }
 
-// TODO: enhance
 // It is not safe to do like this. Each time session's security key should be
 // generated and used just for one time. So we can make sure that attacker
 // who recorded everything will never recover data back even he cracked key.
@@ -109,7 +108,7 @@ func ExchangeIV(conn net.Conn, n int) (iv []byte, err error) {
 	}
 
 	iv = XOR(n, ivs, ivr)
-	log.Notice("Exchange IV for %s: %x", conn.RemoteAddr().String(), iv)
+	logger.Noticef("Exchange IV for %s: %x", conn.RemoteAddr().String(), iv)
 	return
 }
 
@@ -150,14 +149,14 @@ func (sc CryptConn) Read(b []byte) (n int, err error) {
 	}
 	sc.in.XORKeyStream(b[:n], b[:n])
 	if DEBUGOUTPUT {
-		log.Debug("recv\n", hex.Dump(b[:n]))
+		logger.Debugf("recv\n", hex.Dump(b[:n]))
 	}
 	return
 }
 
 func (sc CryptConn) Write(b []byte) (n int, err error) {
 	if DEBUGOUTPUT {
-		log.Debug("send\n", hex.Dump(b))
+		logger.Debugf("send\n", hex.Dump(b))
 	}
 	sc.out.XORKeyStream(b[:], b[:])
 	return sc.Conn.Write(b)
