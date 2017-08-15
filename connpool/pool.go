@@ -20,6 +20,7 @@ const (
 var (
 	ErrNoSession       = errors.New("session in pool but can't pick one.")
 	ErrSessionNotFound = errors.New("session not found.")
+	ErrNoCreator       = errors.New("can't create tunnel with no creator.")
 )
 
 var (

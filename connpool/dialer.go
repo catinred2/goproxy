@@ -20,10 +20,10 @@ type Dialer struct {
 
 func NewDialer(MinSess, MaxConn int) (dialer *Dialer) {
 	if MinSess == 0 {
-		MinSess = 1
+		MinSess = 0
 	}
 	if MaxConn == 0 {
-		MaxConn = 32
+		MaxConn = 64
 	}
 	dialer = &Dialer{
 		Pool:    NewPool(),
@@ -40,14 +40,15 @@ func (dialer *Dialer) AddDialerCreator(orig *tunnel.DialerCreator) {
 	dialer.creators = append(dialer.creators, orig)
 }
 
+// CAUTION: balance should run after loop begin
+// because creators are added one by one, it will take a while.
 func (dialer *Dialer) loop() {
 	for {
-		// FIXME: why not working if in the end
+		time.Sleep(60 * time.Second)
 		err := dialer.balance()
 		if err != nil {
 			logger.Error(err.Error())
 		}
-		time.Sleep(60 * time.Second)
 	}
 }
 
@@ -99,6 +100,13 @@ func (dialer *Dialer) newTunnel(first bool) (err error) {
 	if first && (dialer.GetSize() != 0) {
 		dialer.lock.RUnlock()
 		logger.Debug("create first tunnel but already have one.")
+		return
+	}
+
+	if len(dialer.creators) == 0 {
+		dialer.lock.RUnlock()
+		err = ErrNoCreator
+		logger.Error(err.Error())
 		return
 	}
 
