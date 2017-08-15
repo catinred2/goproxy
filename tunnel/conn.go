@@ -1,26 +1,13 @@
 package tunnel
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
-)
 
-var (
-	ErrBrokenPipe = errors.New("write in broken pipe")
-)
-
-const (
-	ST_UNKNOWN  = 0x00
-	ST_SYN_RECV = 0x01
-	ST_SYN_SENT = 0x02
-	ST_EST      = 0x03
-	ST_FIN_RECV = 0x04
-	ST_FIN_SENT = 0x06
+	"github.com/shell909090/goproxy/netutil"
 )
 
 type Addr struct {
@@ -80,29 +67,24 @@ func (c *Conn) String() (s string) {
 }
 
 func (c *Conn) GetStreamId() uint16 {
+	// used by manager
 	return c.streamid
 }
 
 func (c *Conn) GetStatusString() (st string) {
+	// used by manager
 	c.lock.Lock()
 	status := c.status
 	c.lock.Unlock()
-	switch status {
-	case ST_SYN_RECV:
-		return "SYN_RECV"
-	case ST_SYN_SENT:
-		return "SYN_SENT"
-	case ST_EST:
-		return "ESTAB"
-	case ST_FIN_RECV:
-		return "FIN_RECV"
-	case ST_FIN_SENT:
-		return "FIN_SENT"
+	st, ok := StatusText[status]
+	if !ok {
+		panic(fmt.Sprintf("status %d not exist", status))
 	}
-	return "UNKNOWN"
+	return
 }
 
 func (c *Conn) GetTarget() (s string) {
+	// used by manager
 	return fmt.Sprintf("%s:%s", c.Network, c.Address)
 }
 
@@ -134,7 +116,13 @@ func (c *Conn) Connect(network, address string) (err error) {
 	errno := RecvWithTimeout(c.ch_syn, DIAL_TIMEOUT*time.Millisecond)
 
 	if errno != ERR_NONE {
-		logger.Errorf("remote connect %s failed for %d.", c.String(), errno)
+		errtxt, ok := ErrnoText[errno]
+		if !ok {
+			errtxt = "unknown"
+		}
+		logger.Errorf(
+			"%s connect %s:%s failed for %s",
+			c.String(), network, address, errtxt)
 		c.Final()
 		return
 	}
@@ -162,9 +150,6 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 			// when data isn't empty, reader should return.
 			// when it is empty, reader should be blocked in here.
 			v, err = c.rqueue.Pop(n == 0)
-			if err == ErrQueueClosed {
-				err = io.EOF
-			}
 			if err != nil {
 				return
 			}
@@ -211,9 +196,10 @@ func (c *Conn) Read(data []byte) (n int, err error) {
 func (c *Conn) Write(data []byte) (n int, err error) {
 	for len(data) > 0 {
 		size := uint16(len(data))
-		// random size
-		if size > 24*1024 {
-			size = uint16(16*1024 + rand.Intn(16*1024))
+		if size > uint16(netutil.BUFFERSIZE) {
+			size = uint16(netutil.BUFFERSIZE)
+			// random size
+			// size = uint16(16*1024 + rand.Intn(16*1024))
 		}
 
 		err = c.writeSlice(data[:size])
@@ -239,7 +225,7 @@ func (c *Conn) writeSlice(data []byte) (err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if c.status != ST_EST {
-		return ErrBrokenPipe
+		return io.ErrClosedPipe
 	}
 
 	fdata := NewFrame(MSG_DATA, c.streamid)
@@ -394,7 +380,7 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 		switch err {
 		default:
 			return
-		case ErrQueueClosed:
+		case io.ErrClosedPipe:
 			// Drop data here
 			err = nil
 		case nil:

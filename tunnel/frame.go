@@ -4,24 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-)
-
-const (
-	MSG_UNKNOWN = iota
-	MSG_RESULT
-	MSG_AUTH
-	MSG_DATA
-	MSG_SYN
-	MSG_WND
-	MSG_FIN
-	MSG_RST
-)
-
-var (
-	ErrFrameOverFlow = errors.New("marshal overflow in frame")
 )
 
 type Header struct {
@@ -63,13 +47,10 @@ func ReadFrame(r io.Reader, v interface{}) (f *Frame, err error) {
 	}
 
 	f.Data = make([]byte, f.Header.Length)
-	n, err := r.Read(f.Data)
+	_, err = io.ReadFull(r, f.Data)
 	if err != nil {
 		logger.Error(err.Error())
 		return
-	}
-	if n != int(f.Header.Length) {
-		return nil, ErrShortRead
 	}
 
 	if v != nil {
@@ -151,7 +132,7 @@ func (f *Frame) WriteTo(stream io.Writer) (err error) {
 		return
 	}
 	if n != len(b) {
-		return ErrShortWrite
+		return io.ErrShortWrite
 	}
 	return
 }

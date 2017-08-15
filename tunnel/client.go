@@ -35,7 +35,7 @@ func (dc *DialerCreator) Create() (client *Client, err error) {
 	}
 
 	ti := time.AfterFunc(AUTH_TIMEOUT*time.Millisecond, func() {
-		logger.Noticef(ErrAuthFailed.Error(), conn.RemoteAddr())
+		logger.Errorf("auth timeout %s.", conn.RemoteAddr())
 		conn.Close()
 	})
 	defer ti.Stop()

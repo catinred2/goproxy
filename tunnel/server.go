@@ -1,6 +1,7 @@
 package tunnel
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -14,7 +15,7 @@ type PasswordAuthenticator interface {
 
 func AuthConn(auth PasswordAuthenticator, conn net.Conn) (err error) {
 	ti := time.AfterFunc(AUTH_TIMEOUT*time.Millisecond, func() {
-		logger.Noticef(ErrAuthFailed.Error(), conn.RemoteAddr())
+		logger.Errorf("auth timeout %s.", conn.RemoteAddr())
 		conn.Close()
 	})
 
@@ -41,15 +42,16 @@ func onAuth(author PasswordAuthenticator, stream io.ReadWriteCloser) (err error)
 	}
 
 	if !author.AuthPass(auth.Username, auth.Password) {
-		logger.Noticef("user %s auth failed with password: %s.",
+		logger.Errorf("user %s auth failed with password: %s.",
 			auth.Username, auth.Password)
 		err = WriteFrame(
 			stream, MSG_RESULT, fauth.Header.Streamid, ERR_AUTH)
 		if err != nil {
-			logger.Error(err.Error())
 			return
 		}
-		return ErrAuthFailed
+		err = fmt.Errorf("user %s auth failed, password:%s.",
+			auth.Username, auth.Password)
+		return
 	}
 
 	err = WriteFrame(

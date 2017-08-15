@@ -14,9 +14,10 @@ var (
 )
 
 var (
+	BUFFERSIZE = 8 * 1024
 	BufferPool = sync.Pool{
 		New: func() interface{} {
-			return make([]byte, 8192)
+			return make([]byte, BUFFERSIZE)
 		},
 	}
 )
@@ -31,7 +32,7 @@ func CopyLink(dst, src io.ReadWriteCloser) {
 	defer dst.Close()
 	buf := BufferPool.Get().([]byte)
 	defer BufferPool.Put(buf)
-	io.CopyBuffer(dst, src, buf)
+	io.CopyBuffer(dst, src, nil)
 }
 
 type Dialer interface {

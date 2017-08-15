@@ -5,11 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -21,7 +18,6 @@ import (
 
 var (
 	ErrParseIP = errors.New("can't get myip.")
-	reip       = regexp.MustCompile("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")
 	MyIP       string
 )
 
@@ -34,26 +30,30 @@ func ParseUint(s string) (n uint64) {
 	return
 }
 
+type TaobaoResp struct {
+	Code int `json:"code"`
+	Data struct {
+		IP string `json:"ip"`
+	} `json:"data"`
+}
+
 func getMyIP() (ip string, err error) {
-	resp, err := http.Get("http://myip.ipip.net")
+	resp, err := http.Get("http://ip.taobao.com/service/getIpInfo.php?ip=myip")
 	if err != nil {
-		log.Fatalf("get myip err: %s.", err.Error())
+		logger.Errorf("get myip err: %s.", err.Error())
 		return
 	}
+	defer resp.Body.Close()
 
-	p, err := ioutil.ReadAll(resp.Body)
+	var tbresp TaobaoResp
+
+	err = json.NewDecoder(resp.Body).Decode(&tbresp)
 	if err != nil {
-		log.Fatalf("myip read err: %s.", err.Error())
+		logger.Errorf("parse myip err: %s.", err.Error())
 		return
 	}
 
-	ipstrs := reip.FindAllString(string(p), 1)
-	if ipstrs == nil {
-		err = ErrParseIP
-		return
-	}
-
-	return ipstrs[0], nil
+	return tbresp.Data.IP, nil
 }
 
 func init() {

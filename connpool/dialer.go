@@ -43,11 +43,11 @@ func (dialer *Dialer) AddDialerCreator(orig *tunnel.DialerCreator) {
 func (dialer *Dialer) loop() {
 	for {
 		// FIXME: why not working if in the end
-		time.Sleep(60 * time.Second)
 		err := dialer.balance()
 		if err != nil {
 			logger.Error(err.Error())
 		}
+		time.Sleep(60 * time.Second)
 	}
 }
 

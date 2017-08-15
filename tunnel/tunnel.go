@@ -14,6 +14,35 @@ const (
 )
 
 const (
+	MSG_UNKNOWN = iota
+	MSG_RESULT
+	MSG_AUTH
+	MSG_DATA
+	MSG_SYN
+	MSG_WND
+	MSG_FIN
+	MSG_RST
+)
+
+const (
+	ST_UNKNOWN  = 0x00
+	ST_SYN_RECV = 0x01
+	ST_SYN_SENT = 0x02
+	ST_EST      = 0x03
+	ST_FIN_RECV = 0x04
+	ST_FIN_SENT = 0x06
+)
+
+var StatusText = map[uint8]string{
+	ST_UNKNOWN:  "UNKNOWN",
+	ST_SYN_RECV: "SYN_RECV",
+	ST_SYN_SENT: "SYN_SENT",
+	ST_EST:      "ESTAB",
+	ST_FIN_RECV: "FIN_RECV",
+	ST_FIN_SENT: "FIN_SENT",
+}
+
+const (
 	ERR_NONE = iota
 	ERR_AUTH
 	ERR_IDEXIST
@@ -22,15 +51,19 @@ const (
 	ERR_CLOSED
 )
 
+var ErrnoText = map[uint32]string{
+	ERR_NONE:       "none",
+	ERR_AUTH:       "auth failed",
+	ERR_IDEXIST:    "stream id existed",
+	ERR_CONNFAILED: "connected failed",
+	ERR_TIMEOUT:    "timeout",
+	ERR_CLOSED:     "connect closed",
+}
+
 var (
-	ErrShortRead      = errors.New("short read.")
-	ErrShortWrite     = errors.New("short write.")
+	ErrFrameOverFlow  = errors.New("marshal overflow in frame")
 	ErrUnknownNetwork = errors.New("unknown network.")
-	ErrAuthFailed     = errors.New("auth failed %s.")
-	ErrAuthTimeout    = errors.New("auth timeout %s.")
-	ErrStreamNotExist = errors.New("stream not exist.")
 	ErrStreamOutOfID  = errors.New("stream out of id.")
-	ErrQueueClosed    = errors.New("queue closed.")
 	ErrUnexpectedPkg  = errors.New("unexpected package.")
 	ErrIdExist        = errors.New("frame sync stream id exist.")
 	ErrState          = errors.New("status error.")

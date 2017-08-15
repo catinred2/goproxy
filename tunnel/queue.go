@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"container/list"
+	"io"
 	"sync"
 )
 
@@ -26,7 +27,7 @@ func (q *Queue) Push(v interface{}) (err error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 	if q.closed {
-		return ErrQueueClosed
+		return io.ErrClosedPipe
 	}
 	q.queue.PushBack(v)
 	q.ev.Signal()
@@ -40,7 +41,7 @@ func (q *Queue) Pop(block bool) (v interface{}, err error) {
 	var e *list.Element
 	for e = q.queue.Front(); e == nil; e = q.queue.Front() {
 		if q.closed {
-			return nil, ErrQueueClosed
+			return nil, io.EOF
 		}
 		if !block {
 			return
