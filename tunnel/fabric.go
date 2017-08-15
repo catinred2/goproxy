@@ -11,6 +11,7 @@ import (
 
 type Fabric struct {
 	net.Conn
+	startTime time.Time
 	wlock     sync.Mutex
 	closed    bool
 	plock     sync.RWMutex
@@ -21,10 +22,11 @@ type Fabric struct {
 
 func NewFabric(conn net.Conn, next_id uint16) (fab *Fabric) {
 	fab = &Fabric{
-		Conn:    conn,
-		closed:  false,
-		next_id: next_id,
-		weaves:  make(map[uint16]Fiber, 0),
+		Conn:      conn,
+		startTime: time.Now(),
+		closed:    false,
+		next_id:   next_id,
+		weaves:    make(map[uint16]Fiber, 0),
 	}
 	return
 }
@@ -34,6 +36,11 @@ func (fab *Fabric) String() string {
 		"%s->%s",
 		fab.Conn.LocalAddr().String(),
 		fab.Conn.RemoteAddr().String())
+}
+
+func (fab *Fabric) Uptime() (d time.Duration) {
+	d = time.Since(fab.startTime)
+	return d
 }
 
 func (fab *Fabric) GetSize() int {

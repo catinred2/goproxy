@@ -41,7 +41,7 @@ const (
       <tr>
 	<td>{{$tun.LocalAddr}}</td>
 	<td>{{$tun.GetSize}}</td>
-	<td></td>
+	<td>{{$tun.Uptime}}</td>
 	<td>{{$tun.RemoteAddr}}</td>
       </tr>
       {{range $conn := $tun.GetConnections}}

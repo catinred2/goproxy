@@ -30,6 +30,7 @@ func NewDialer(MinSess, MaxConn int) (dialer *Dialer) {
 		MinSess: MinSess,
 		MaxConn: MaxConn,
 	}
+	go dialer.loop()
 	return
 }
 
@@ -41,17 +42,19 @@ func (dialer *Dialer) AddDialerCreator(orig *tunnel.DialerCreator) {
 
 func (dialer *Dialer) loop() {
 	for {
+		// FIXME: why not working if in the end
+		time.Sleep(60 * time.Second)
 		err := dialer.balance()
 		if err != nil {
 			logger.Error(err.Error())
 		}
-		time.Sleep(60 * time.Second)
 	}
 }
 
 func (dialer *Dialer) balance() (err error) {
 	tsize := dialer.GetSize()
 	if tsize < dialer.MinSess {
+		logger.Info("create tunnel because tsize < minsess.")
 		err = dialer.newTunnel(false)
 		if err != nil {
 			return
@@ -60,6 +63,7 @@ func (dialer *Dialer) balance() (err error) {
 
 	_, fsize := dialer.getMinimum()
 	if fsize > dialer.MaxConn {
+		logger.Info("create tunnel because fsize > maxconn.")
 		err = dialer.newTunnel(false)
 		if err != nil {
 			return
@@ -92,7 +96,7 @@ func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
 func (dialer *Dialer) newTunnel(first bool) (err error) {
 	var tun tunnel.Tunnel
 	dialer.lock.RLock()
-	if first && dialer.GetSize() != 0 {
+	if first && (dialer.GetSize() != 0) {
 		dialer.lock.RUnlock()
 		logger.Debug("create first tunnel but already have one.")
 		return
