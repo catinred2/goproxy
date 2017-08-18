@@ -1,8 +1,8 @@
-goproxy (3.0) UNRELEASED; urgency=medium
+goproxy (3.0) unstable; urgency=medium
 
   * new protocol, use json. not compatible with old system.
 
- -- Shell.Xu <shell909090@gmail.com>  Sun, 13 Aug 2017 19:33:48 +0800
+ -- Shell.Xu <shell909090@gmail.com>  Fri, 18 Aug 2017 23:13:29 +0800
 
 goproxy (2.5.0) unstable; urgency=medium
 
