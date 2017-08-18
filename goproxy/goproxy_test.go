@@ -32,8 +32,8 @@ func TestGoproxy(t *testing.T) {
 		},
 		CryptMode:   "tls",
 		RootCAs:     AbsPath("../keys/ca.crt"),
-		CertFile:    AbsPath("../keys/server.crt"),
-		CertKeyFile: AbsPath("../keys/server.key"),
+		CertFile:    AbsPath("../keys/localhost.crt"),
+		CertKeyFile: AbsPath("../keys/localhost.key"),
 	}
 	go func() {
 		err := RunServer(&srvcfg)
@@ -47,6 +47,7 @@ func TestGoproxy(t *testing.T) {
 		Config: Config{
 			Mode:       "http",
 			Listen:     "127.0.0.1:5234",
+			Loglevel:   "WARNING",
 			AdminIface: "127.0.0.1:5235",
 			DnsNet:     "https",
 		},
@@ -54,7 +55,7 @@ func TestGoproxy(t *testing.T) {
 	}
 	srvdesc := ServerDefine{
 		CryptMode:   "tls",
-		Server:      "127.0.0.1:5233",
+		Server:      "localhost:5233",
 		RootCAs:     AbsPath("../keys/ca.crt"),
 		CertFile:    AbsPath("../keys/user.crt"),
 		CertKeyFile: AbsPath("../keys/user.key"),
@@ -93,6 +94,6 @@ func TestGoproxy(t *testing.T) {
 		return
 	}
 
-	fmt.Print(b)
+	fmt.Print(string(b))
 	return
 }

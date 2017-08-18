@@ -10,6 +10,7 @@ type DnsServer struct {
 }
 
 func (dnssrv *DnsServer) ServeDNS(w dns.ResponseWriter, quiz *dns.Msg) {
+	logger.Debugf("dns server query: %s", quiz.Question[0].Name)
 	resp, err := dnssrv.Exchanger.Exchange(quiz)
 	if err != nil {
 		logger.Error(err.Error())
@@ -38,12 +39,6 @@ func RunDnsServer(addr string) {
 		Handler: handler,
 	}
 
-	go func() {
-		for {
-			err := server.ListenAndServe()
-			if err != nil {
-				logger.Error(err.Error())
-			}
-		}
-	}()
+	logger.Infof("dns server start.")
+	go server.ListenAndServe()
 }
