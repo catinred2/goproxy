@@ -1,3 +1,9 @@
+goproxy (3.0.1) UNRELEASED; urgency=medium
+
+  * add dns server in the client side
+
+ -- Shell.Xu <shell909090@gmail.com>  Fri, 18 Aug 2017 23:17:32 +0800
+
 goproxy (3.0) unstable; urgency=medium
 
   * new protocol, use json. not compatible with old system.

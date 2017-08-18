@@ -37,7 +37,8 @@ type ClientConfig struct {
 	HttpUser     string
 	HttpPassword string
 
-	Portmaps []portmapper.PortMap
+	Portmaps  []portmapper.PortMap
+	DnsServer string
 }
 
 func LoadClientConfig(basecfg *Config) (cfg *ClientConfig, err error) {
@@ -99,6 +100,10 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 		if err != nil {
 			return
 		}
+	}
+
+	if cfg.DnsServer != "" {
+		RunDnsServer(cfg.DnsServer)
 	}
 
 	if cfg.AdminIface != "" {

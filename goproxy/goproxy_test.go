@@ -26,8 +26,9 @@ func TestGoproxy(t *testing.T) {
 
 	srvcfg := ServerConfig{
 		Config: Config{
-			Mode:   "server",
-			Listen: "127.0.0.1:5233",
+			Mode:     "server",
+			Loglevel: "WARNING",
+			Listen:   "127.0.0.1:5233",
 		},
 		CryptMode:   "tls",
 		RootCAs:     AbsPath("../keys/ca.crt"),
@@ -47,7 +48,9 @@ func TestGoproxy(t *testing.T) {
 			Mode:       "http",
 			Listen:     "127.0.0.1:5234",
 			AdminIface: "127.0.0.1:5235",
+			DnsNet:     "https",
 		},
+		DnsServer: "127.0.0.1:5236",
 	}
 	srvdesc := ServerDefine{
 		CryptMode:   "tls",
