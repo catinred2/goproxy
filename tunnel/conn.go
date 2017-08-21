@@ -57,8 +57,8 @@ func NewConn(fab *Fabric) (c *Conn) {
 		fab:    fab,
 		rqueue: NewQueue(),
 		window: WINDOWSIZE,
-		wev:    &sync.Cond{},
 	}
+	c.wev = sync.NewCond(&c.lock)
 	return
 }
 
@@ -396,12 +396,14 @@ func (c *Conn) SendFrame(f *Frame) (err error) {
 
 		c.lock.Lock()
 		c.window += int32(window)
-		c.lock.Unlock()
 		c.wev.Signal()
+		c.lock.Unlock()
 		logger.Debugf("%s window + %d = %d.", c.String(), window, c.window)
+
 	case MSG_FIN:
 		logger.Debugf("%s read close.", c.String())
 		c.closeRead()
+
 	case MSG_RST:
 		logger.Debugf("%s reset.", c.String())
 		c.Reset()

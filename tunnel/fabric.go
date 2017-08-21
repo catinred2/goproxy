@@ -88,7 +88,7 @@ func (fab *Fabric) PutIntoNextId(f Fiber) (id uint16, err error) {
 	fab.next_id += 2
 	fab.weaves[id] = f
 
-	logger.Debugf("%s put %p into %s.", fab.String(), f, id)
+	logger.Debugf("%s put %p into %d.", fab.String(), f, id)
 	return
 }
 

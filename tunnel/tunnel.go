@@ -11,6 +11,7 @@ const (
 	DIAL_TIMEOUT  = 20000
 	WRITE_TIMEOUT = 10000
 	WINDOWSIZE    = 4 * 1024 * 1024
+	// WINDOWSIZE = 100
 )
 
 const (
