@@ -114,7 +114,7 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 		}
 	}
 
-	if subnet == "" {
+	if subnet == "" && handler.MyIP != "" {
 		subnet = handler.MyIP
 	}
 

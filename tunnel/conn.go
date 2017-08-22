@@ -130,6 +130,33 @@ func (c *Conn) Connect(network, address string) (err error) {
 	return
 }
 
+func (c *Conn) Accept() (err error) {
+	err = c.CheckAndSetStatus(ST_SYN_RECV, ST_EST)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+
+	err = SendFrame(
+		c.fab, MSG_RESULT, c.streamid, ERR_NONE)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	return
+}
+
+func (c *Conn) Deny() (err error) {
+	defer c.Final()
+	err = SendFrame(
+		c.fab, MSG_RESULT, c.streamid, ERR_CONNFAILED)
+	if err != nil {
+		logger.Error(err.Error())
+		return
+	}
+	return
+}
+
 func (c *Conn) CheckAndSetStatus(old uint8, new uint8) (err error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()

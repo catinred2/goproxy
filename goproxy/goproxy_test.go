@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -80,20 +79,27 @@ func TestGoproxy(t *testing.T) {
 		},
 	}
 
-	time.Sleep(2 * time.Second)
+	var resp *http.Response
+	for count := 0; count < 3; count++ {
+		time.Sleep(1 * time.Second)
 
-	resp, err := myClient.Get("http://127.0.0.1:5235/")
+		resp, err = myClient.Get("http://127.0.0.1:5235/")
+		if err != nil {
+			logger.Info("failed once")
+			continue
+		}
+
+		_, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	fmt.Print(string(b))
+	// fmt.Print(string(b))
 	return
 }

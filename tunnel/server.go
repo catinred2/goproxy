@@ -5,8 +5,6 @@ import (
 	"io"
 	"net"
 	"time"
-
-	"github.com/shell909090/goproxy/netutil"
 )
 
 type PasswordAuthenticator interface {
@@ -124,19 +122,30 @@ func (s *TunnelServer) SendFrame(f *Frame) (err error) {
 }
 
 func (s *TunnelServer) onSyn(streamid uint16, syn *Syn) (err error) {
+	var c *Conn
 	switch syn.Network {
 	default:
 		err = ErrUnknownNetwork
 		logger.Error(err.Error())
 		return
+	case "myip":
+		c, err = s.accept(streamid, syn)
+		if err != nil {
+			return
+		}
+		go myip(c)
 	case "tcp", "tcp4", "tcp6":
-		return s.tcp_proxy(streamid, syn)
+		c, err = s.accept(streamid, syn)
+		if err != nil {
+			return
+		}
+		go tcp_proxy(c)
 	}
 	return
 }
 
-func (s *TunnelServer) tcp_proxy(streamid uint16, syn *Syn) (err error) {
-	c := NewConn(s.Fabric)
+func (s *TunnelServer) accept(streamid uint16, syn *Syn) (c *Conn, err error) {
+	c = NewConn(s.Fabric)
 	err = c.CheckAndSetStatus(ST_UNKNOWN, ST_SYN_RECV)
 	if err != nil {
 		logger.Error(err.Error())
@@ -149,66 +158,12 @@ func (s *TunnelServer) tcp_proxy(streamid uint16, syn *Syn) (err error) {
 	err = s.Fabric.PutIntoId(streamid, c)
 	if err != nil {
 		logger.Error(err.Error())
-
 		err = SendFrame(
 			s.Fabric, MSG_RESULT, streamid, ERR_IDEXIST)
 		if err != nil {
 			logger.Error(err.Error())
 			return
 		}
-
-		return
-	}
-
-	go func() {
-		var err error
-		var conn net.Conn
-
-		logger.Debugf("%s try to connect %s:%s.",
-			c.String(), syn.Network, syn.Address)
-
-		conn, err = DialMaybeTimeout(syn.Network, syn.Address)
-		if err != nil {
-			logger.Error(err.Error())
-			defer c.Final()
-
-			err = SendFrame(
-				s.Fabric, MSG_RESULT, streamid, ERR_CONNFAILED)
-			if err != nil {
-				logger.Error(err.Error())
-				return
-			}
-			return
-		}
-
-		err = c.CheckAndSetStatus(ST_SYN_RECV, ST_EST)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-
-		err = SendFrame(
-			s.Fabric, MSG_RESULT, streamid, ERR_NONE)
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-
-		go netutil.CopyLink(conn, c)
-		logger.Noticef("%s connected to %s:%s.",
-			c.String(), syn.Network, syn.Address)
-		return
-	}()
-
-	return
-}
-
-func DialMaybeTimeout(network, address string) (conn net.Conn, err error) {
-	if dialer, ok := netutil.DefaultTcpDialer.(netutil.TimeoutDialer); ok {
-		conn, err = dialer.DialTimeout(
-			network, address, DIAL_TIMEOUT*time.Second)
-	} else {
-		conn, err = netutil.DefaultTcpDialer.Dial(network, address)
 	}
 	return
 }
