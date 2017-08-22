@@ -18,7 +18,6 @@ import (
 
 var (
 	ErrParseIP = errors.New("can't get myip.")
-	MyIP       string
 )
 
 func ParseUint(s string) (n uint64) {
@@ -56,18 +55,11 @@ func getMyIP() (ip string, err error) {
 	return tbresp.Data.IP, nil
 }
 
-func init() {
-	var err error
-	MyIP, err = getMyIP()
-	if err != nil {
-		panic(err)
-	}
-}
-
 type HttpsDns struct {
 	Resolver
 	baseurl   string
 	transport http.RoundTripper
+	MyIP      string
 }
 
 func NewHttpsDns(dialer netutil.Dialer) (httpsdns *HttpsDns, err error) {
@@ -88,6 +80,10 @@ func NewHttpsDns(dialer netutil.Dialer) (httpsdns *HttpsDns, err error) {
 	}
 	httpsdns.Resolver = &WrapExchanger{
 		Exchanger: httpsdns,
+	}
+	httpsdns.MyIP, err = getMyIP()
+	if err != nil {
+		panic(err)
 	}
 
 	httpsdns.LookupIP("www.google.com")
@@ -119,7 +115,7 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 	}
 
 	if subnet == "" {
-		subnet = MyIP
+		subnet = handler.MyIP
 	}
 
 	jsonresp, err := handler.QueryHttpsDNS(

@@ -111,7 +111,10 @@ func (pool *Pool) HandlerMain(w http.ResponseWriter, req *http.Request) {
 }
 
 func (pool *Pool) GetMyIP() string {
-	return dns.MyIP
+	if httpsdns, ok := dns.DefaultResolver.(dns.HttpsDns); ok {
+		return httpsdns.MyIP
+	}
+	return ""
 }
 
 func HandlerLookup(w http.ResponseWriter, req *http.Request) {
