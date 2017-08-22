@@ -103,7 +103,7 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 	}
 
 	if cfg.DnsServer != "" {
-		RunDnsServer(cfg.DnsServer)
+		go RunDnsServer(cfg.DnsServer)
 	}
 
 	if cfg.AdminIface != "" {

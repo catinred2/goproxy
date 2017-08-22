@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -29,34 +30,54 @@ func ParseUint(s string) (n uint64) {
 	return
 }
 
-type TaobaoResp struct {
-	Code int `json:"code"`
-	Data struct {
-		IP string `json:"ip"`
-	} `json:"data"`
-}
+// type TaobaoResp struct {
+// 	Code int `json:"code"`
+// 	Data struct {
+// 		IP string `json:"ip"`
+// 	} `json:"data"`
+// }
 
-func getMyIP() (ip string, err error) {
-	resp, err := http.Get("http://ip.taobao.com/service/getIpInfo.php?ip=myip")
+// func getMyIP() (ip string, err error) {
+// 	resp, err := http.Get("http://ip.taobao.com/service/getIpInfo.php?ip=myip")
+// 	if err != nil {
+// 		logger.Errorf("get myip err: %s.", err.Error())
+// 		return
+// 	}
+// 	defer resp.Body.Close()
+
+// 	var tbresp TaobaoResp
+
+// 	err = json.NewDecoder(resp.Body).Decode(&tbresp)
+// 	if err != nil {
+// 		logger.Errorf("parse myip err: %s.", err.Error())
+// 		return
+// 	}
+
+// 	return tbresp.Data.IP, nil
+// }
+
+func getMyIP(dialer netutil.Dialer) (myip string) {
+	conn, err := dialer.Dial("myip", "")
 	if err != nil {
-		logger.Errorf("get myip err: %s.", err.Error())
+		logger.Error(err.Error())
 		return
 	}
-	defer resp.Body.Close()
 
-	var tbresp TaobaoResp
-
-	err = json.NewDecoder(resp.Body).Decode(&tbresp)
+	p, err := ioutil.ReadAll(conn)
 	if err != nil {
-		logger.Errorf("parse myip err: %s.", err.Error())
+		logger.Error(err.Error())
 		return
 	}
 
-	return tbresp.Data.IP, nil
+	myaddr := string(p)
+	r := strings.Split(myaddr, ":")
+	myip = r[0]
+	return
 }
 
 type HttpsDns struct {
 	Resolver
+	dialer    netutil.Dialer
 	baseurl   string
 	transport http.RoundTripper
 	MyIP      string
@@ -75,28 +96,12 @@ func NewHttpsDns(dialer netutil.Dialer) (httpsdns *HttpsDns, err error) {
 	}
 
 	httpsdns = &HttpsDns{
+		dialer:    dialer,
 		baseurl:   "https://dns.google.com/resolve",
 		transport: transport,
 	}
 	httpsdns.Resolver = &WrapExchanger{
 		Exchanger: httpsdns,
-	}
-	httpsdns.MyIP, err = getMyIP()
-	if err != nil {
-		panic(err)
-	}
-
-	httpsdns.LookupIP("www.google.com")
-
-	// warm up?
-	jsonresp, err := httpsdns.QueryHttpsDNS("1", "www.google.com", "114.114.114.114")
-	if err != nil {
-		logger.Errorf("warmup err: %s.", err.Error())
-		return
-	}
-
-	for _, a := range jsonresp.Answer {
-		logger.Debugf("google result: %s.", a.Data)
 	}
 	return
 }
@@ -112,6 +117,11 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 				}
 			}
 		}
+	}
+
+	if handler.MyIP == "" {
+		handler.MyIP = getMyIP(handler.dialer)
+		logger.Infof("my ip is %s.", handler.MyIP)
 	}
 
 	if subnet == "" && handler.MyIP != "" {
