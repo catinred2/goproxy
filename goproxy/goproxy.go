@@ -93,11 +93,11 @@ func main() {
 	}
 
 	switch basecfg.DnsNet {
-	// case "https":
-	// 	sutils.DefaultLookuper, err = sutils.NewGoogleHttpsDns()
-	// 	if err != nil {
-	// 		return
-	// 	}
+	case "https":
+		dns.DefaultResolver, err = dns.NewHttpsDns(nil)
+		if err != nil {
+			return
+		}
 	case "udp", "tcp":
 		if len(basecfg.DnsAddrs) > 0 {
 			dns.DefaultResolver = dns.NewDns(

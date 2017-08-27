@@ -22,6 +22,7 @@ func NewTcpClient(dialer netutil.Dialer) (client *TcpClient) {
 func (client *TcpClient) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 	logger.Debugf("query %s", quiz.Question[0].Name)
 	if client.conn == nil {
+		// JIT, no warm up. Make things easier.
 		client.conn, err = client.dialer.Dial("dns", "")
 		if err != nil {
 			logger.Error(err.Error())

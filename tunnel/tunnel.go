@@ -51,6 +51,7 @@ const (
 	ERR_CONNFAILED
 	ERR_TIMEOUT
 	ERR_CLOSED
+	ERR_UNKNOWN_PROTOCOL
 )
 
 var ErrnoText = map[uint32]string{

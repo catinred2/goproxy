@@ -92,14 +92,8 @@ func RunHttproxy(cfg *ClientConfig) (err error) {
 
 	dialer = pool
 
-	if cfg.DnsNet == "https" {
-		// The dialer we pass to httpsdns must be msocks.
-		// FilteredDialer will call LookupIP, which will call http2 Dial.
-		// It will cause a endless loop.
-		dns.DefaultResolver, err = dns.NewHttpsDns(dialer)
-		if err != nil {
-			return
-		}
+	if cfg.DnsNet == "internal" {
+		dns.DefaultResolver = dns.NewTcpClient(dialer)
 	}
 
 	if cfg.DnsServer != "" {

@@ -36,12 +36,7 @@ func LoadServerConfig(basecfg *Config) (cfg *ServerConfig, err error) {
 }
 
 func RunServer(cfg *ServerConfig) (err error) {
-	if cfg.DnsNet == "https" {
-		dns.DefaultResolver, err = dns.NewHttpsDns(nil)
-		if err != nil {
-			return
-		}
-	}
+	dns.RegisterService()
 
 	listener, err := net.Listen("tcp4", cfg.Listen)
 	if err != nil {

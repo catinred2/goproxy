@@ -146,7 +146,12 @@ func (s *TunnelServer) onSyn(streamid uint16, syn *Syn) (err error) {
 	handler, ok := ProtocolHandlers[syn.Network]
 	if !ok {
 		logger.Errorf("unknown network: %s.", syn.Network)
-		err = ErrUnknownNetwork
+		err = SendFrame(
+			s.Fabric, MSG_RESULT, streamid, ERR_UNKNOWN_PROTOCOL)
+		if err != nil {
+			logger.Error(err.Error())
+			return
+		}
 		return
 	}
 

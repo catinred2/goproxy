@@ -49,7 +49,7 @@ func SetLogging() {
 	logging.SetBackend(logBackend)
 	logging.SetFormatter(
 		logging.MustStringFormatter("%{module}[%{level}]: %{message}"))
-	lv, _ := logging.LogLevel("DEBUG")
+	lv, _ := logging.LogLevel("INFO")
 	logging.SetLevel(lv, "")
 	return
 }

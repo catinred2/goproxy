@@ -1,8 +1,14 @@
 package dns
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/shell909090/goproxy/tunnel"
+)
 
 func TestHttpsDns(t *testing.T) {
+	tunnel.SetLogging()
+
 	// query with subnet included here
 	httpsdns, err := NewHttpsDns(nil)
 	if err != nil {

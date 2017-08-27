@@ -103,7 +103,7 @@ func appendEdns0Subnet(m *dns.Msg, addr net.IP) {
 	}
 }
 
-func init() {
+func RegisterService() {
 	httpsdns, err := NewHttpsDns(nil)
 	if err != nil {
 		logger.Error(err.Error())

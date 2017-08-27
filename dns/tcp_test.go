@@ -12,6 +12,8 @@ func TestTcpTunnel(t *testing.T) {
 	var wg sync.WaitGroup
 	tunnel.SetLogging()
 
+	RegisterService()
+
 	wg.Add(1)
 	go func() {
 		err := tunnel.RunMockServer(&wg)

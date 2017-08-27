@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shell909090/goproxy/dns"
 	"github.com/shell909090/goproxy/netutil"
+	"github.com/shell909090/goproxy/tunnel"
 )
 
 func AbsPath(i string) (o string) {
@@ -18,7 +20,9 @@ func AbsPath(i string) (o string) {
 }
 
 func TestGoproxy(t *testing.T) {
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
+	tunnel.SetLogging()
+
 	wg.Add(1)
 	go netutil.EchoServer(&wg)
 	wg.Wait()
@@ -41,6 +45,7 @@ func TestGoproxy(t *testing.T) {
 			return
 		}
 	}()
+	time.Sleep(500 * time.Microsecond)
 
 	clicfg := ClientConfig{
 		Config: Config{
@@ -48,9 +53,10 @@ func TestGoproxy(t *testing.T) {
 			Listen:     "127.0.0.1:5234",
 			Loglevel:   "WARNING",
 			AdminIface: "127.0.0.1:5235",
-			DnsNet:     "https",
+			DnsNet:     "internal",
 		},
 		DnsServer: "127.0.0.1:5236",
+		Blackfile: AbsPath("../debian/routes.list.gz"),
 	}
 	srvdesc := ServerDefine{
 		CryptMode:   "tls",
@@ -68,6 +74,13 @@ func TestGoproxy(t *testing.T) {
 			return
 		}
 	}()
+	time.Sleep(500 * time.Microsecond)
+
+	_, err := dns.DefaultResolver.LookupIP("www.sina.com.cn")
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	proxyUrl, err := url.Parse("http://127.0.0.1:5234")
 	if err != nil {
@@ -79,27 +92,36 @@ func TestGoproxy(t *testing.T) {
 		},
 	}
 
-	var resp *http.Response
 	for count := 0; count < 3; count++ {
-		time.Sleep(1 * time.Second)
-
-		resp, err = myClient.Get("http://127.0.0.1:5235/")
-		if err != nil {
-			logger.Info("failed once")
-			continue
-		}
-
-		_, err := ioutil.ReadAll(resp.Body)
+		err = testURL(myClient, "http://127.0.0.1:5235/")
 		if err != nil {
 			t.Error(err)
 			return
 		}
 	}
+	err = testURL(myClient, "https://www.sina.com.cn/")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	// fmt.Print(string(b))
+	return
+}
+
+func testURL(myClient *http.Client, url string) (err error) {
+	resp, err := myClient.Get(url)
+	if err != nil {
+		logger.Info("failed once")
+		err = nil
+		return
+	}
+	defer resp.Body.Close()
+
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+
+	// logger.Debug(string(b))
 	return
 }
