@@ -3,13 +3,10 @@ package tunnel
 import (
 	"bytes"
 	"fmt"
-	stdlog "log"
 	"net"
-	"os"
 	"sync"
 	"testing"
 
-	logging "github.com/op/go-logging"
 	"github.com/shell909090/goproxy/netutil"
 )
 
@@ -88,17 +85,6 @@ func multi_client(t *testing.T, client *Client, wg *sync.WaitGroup) {
 // 	logger.Info(string(p))
 // 	return
 // }
-
-func SetLogging() {
-	logBackend := logging.NewLogBackend(os.Stderr, "",
-		stdlog.Ltime|stdlog.Lmicroseconds|stdlog.Lshortfile)
-	logging.SetBackend(logBackend)
-	logging.SetFormatter(
-		logging.MustStringFormatter("%{module}[%{level}]: %{message}"))
-	lv, _ := logging.LogLevel("INFO")
-	logging.SetLevel(lv, "")
-	return
-}
 
 func TestTunnel(t *testing.T) {
 	var wg sync.WaitGroup

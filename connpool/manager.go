@@ -21,7 +21,6 @@ const (
     <table>
       <tr>
         <td width="50%"><a href="cutoff">cutoff</a></td>
-        <td width="50%">my ip: {{.GetMyIP}}</td>
       </tr>
       <tr>
 	<td>
@@ -110,12 +109,12 @@ func (pool *Pool) HandlerMain(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-func (pool *Pool) GetMyIP() string {
-	if httpsdns, ok := dns.DefaultResolver.(dns.HttpsDns); ok {
-		return httpsdns.MyIP
-	}
-	return ""
-}
+// func (pool *Pool) GetMyIP() string {
+// 	if httpsdns, ok := dns.DefaultResolver.(dns.HttpsDns); ok {
+// 		return httpsdns.MyIP
+// 	}
+// 	return ""
+// }
 
 func HandlerLookup(w http.ResponseWriter, req *http.Request) {
 	q := req.URL.Query()

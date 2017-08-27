@@ -3,9 +3,7 @@ package dns
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"strconv"
@@ -17,9 +15,9 @@ import (
 	"github.com/shell909090/goproxy/netutil"
 )
 
-var (
-	ErrParseIP = errors.New("can't get myip.")
-)
+// var (
+// 	ErrParseIP = errors.New("can't get myip.")
+// )
 
 func ParseUint(s string) (n uint64) {
 	n, err := strconv.ParseUint(s, 10, 32)
@@ -56,31 +54,31 @@ func ParseUint(s string) (n uint64) {
 // 	return tbresp.Data.IP, nil
 // }
 
-func getMyIP(dialer netutil.Dialer) (myip string) {
-	conn, err := dialer.Dial("myip", "")
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
+// func getMyIP(dialer netutil.Dialer) (myip string) {
+// 	conn, err := dialer.Dial("myip", "")
+// 	if err != nil {
+// 		logger.Error(err.Error())
+// 		return
+// 	}
 
-	p, err := ioutil.ReadAll(conn)
-	if err != nil {
-		logger.Error(err.Error())
-		return
-	}
+// 	p, err := ioutil.ReadAll(conn)
+// 	if err != nil {
+// 		logger.Error(err.Error())
+// 		return
+// 	}
 
-	myaddr := string(p)
-	r := strings.Split(myaddr, ":")
-	myip = r[0]
-	return
-}
+// 	myaddr := string(p)
+// 	r := strings.Split(myaddr, ":")
+// 	myip = r[0]
+// 	return
+// }
 
 type HttpsDns struct {
 	Resolver
 	dialer    netutil.Dialer
 	baseurl   string
 	transport http.RoundTripper
-	MyIP      string
+	// MyIP      string
 }
 
 func NewHttpsDns(dialer netutil.Dialer) (httpsdns *HttpsDns, err error) {
@@ -119,14 +117,14 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 		}
 	}
 
-	if handler.MyIP == "" {
-		handler.MyIP = getMyIP(handler.dialer)
-		logger.Infof("my ip is %s.", handler.MyIP)
-	}
+	// if handler.MyIP == "" {
+	// 	handler.MyIP = getMyIP(handler.dialer)
+	// 	logger.Infof("my ip is %s.", handler.MyIP)
+	// }
 
-	if subnet == "" && handler.MyIP != "" {
-		subnet = handler.MyIP
-	}
+	// if subnet == "" && handler.MyIP != "" {
+	// 	subnet = handler.MyIP
+	// }
 
 	jsonresp, err := handler.QueryHttpsDNS(
 		fmt.Sprintf("%v", quiz.Question[0].Qtype),

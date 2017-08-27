@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"errors"
 	"net"
 
 	"github.com/miekg/dns"
@@ -10,6 +11,10 @@ import (
 var (
 	logger   = logging.MustGetLogger("dns")
 	DEBUGDNS = true
+)
+
+var (
+	ErrMessageTooLarge = errors.New("message body too large")
 )
 
 type Resolver interface {

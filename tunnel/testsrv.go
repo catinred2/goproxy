@@ -1,8 +1,12 @@
 package tunnel
 
 import (
+	stdlog "log"
 	"net"
+	"os"
 	"sync"
+
+	logging "github.com/op/go-logging"
 )
 
 type MockServer struct {
@@ -36,5 +40,16 @@ func (m *MockServer) Handle(conn net.Conn) (err error) {
 	tun := NewTunnelServer(conn)
 	tun.Loop()
 	logger.Warning("server loop quit")
+	return
+}
+
+func SetLogging() {
+	logBackend := logging.NewLogBackend(os.Stderr, "",
+		stdlog.Ltime|stdlog.Lmicroseconds|stdlog.Lshortfile)
+	logging.SetBackend(logBackend)
+	logging.SetFormatter(
+		logging.MustStringFormatter("%{module}[%{level}]: %{message}"))
+	lv, _ := logging.LogLevel("DEBUG")
+	logging.SetLevel(lv, "")
 	return
 }
