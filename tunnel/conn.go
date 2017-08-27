@@ -310,7 +310,7 @@ func (c *Conn) closeWrite() (err error) {
 	switch c.status {
 	case ST_EST:
 		c.status = ST_FIN_SENT
-		c.t_closing = time.AfterFunc(CLOSE_TIMEOUT*time.Microsecond, c.Reset)
+		c.t_closing = time.AfterFunc(CLOSE_TIMEOUT*time.Millisecond, c.Reset)
 	case ST_FIN_RECV:
 		c.status = ST_UNKNOWN
 		c.t_closing.Stop()
@@ -340,7 +340,7 @@ func (c *Conn) closeRead() (err error) {
 	switch c.status {
 	case ST_EST:
 		c.status = ST_FIN_RECV
-		c.t_closing = time.AfterFunc(CLOSE_TIMEOUT*time.Microsecond, c.Reset)
+		c.t_closing = time.AfterFunc(CLOSE_TIMEOUT*time.Millisecond, c.Reset)
 	case ST_FIN_SENT:
 		c.status = ST_UNKNOWN
 		c.t_closing.Stop()

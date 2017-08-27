@@ -45,7 +45,7 @@ func TestGoproxy(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(500 * time.Microsecond)
+	time.Sleep(500 * time.Millisecond)
 
 	clicfg := ClientConfig{
 		Config: Config{
@@ -74,7 +74,7 @@ func TestGoproxy(t *testing.T) {
 			return
 		}
 	}()
-	time.Sleep(500 * time.Microsecond)
+	time.Sleep(500 * time.Millisecond)
 
 	_, err := dns.DefaultResolver.LookupIP("www.sina.com.cn")
 	if err != nil {

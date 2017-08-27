@@ -104,7 +104,7 @@ func (client *Client) Dial(network, address string) (conn net.Conn, err error) {
 }
 
 func (client *Client) SendFrame(f *Frame) (err error) {
-	logger.Error("client should never recv unmapped frame: %s.", f.Debug())
+	logger.Errorf("client should never recv unmapped frame: %s.", f.Debug())
 	return
 }
 
