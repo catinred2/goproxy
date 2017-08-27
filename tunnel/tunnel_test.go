@@ -3,7 +3,6 @@ package tunnel
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	stdlog "log"
 	"net"
 	"os"
@@ -73,22 +72,22 @@ func multi_client(t *testing.T, client *Client, wg *sync.WaitGroup) {
 	}
 }
 
-func get_myip(t *testing.T, client *Client, wg *sync.WaitGroup) {
-	conn, err := client.Dial("myip", "")
-	if err != nil {
-		t.Error(err)
-		return
-	}
+// func get_myip(t *testing.T, client *Client, wg *sync.WaitGroup) {
+// 	conn, err := client.Dial("myip", "")
+// 	if err != nil {
+// 		t.Error(err)
+// 		return
+// 	}
 
-	p, err := ioutil.ReadAll(conn)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+// 	p, err := ioutil.ReadAll(conn)
+// 	if err != nil {
+// 		t.Error(err)
+// 		return
+// 	}
 
-	logger.Info(string(p))
-	return
-}
+// 	logger.Info(string(p))
+// 	return
+// }
 
 func SetLogging() {
 	logBackend := logging.NewLogBackend(os.Stderr, "",
@@ -128,7 +127,7 @@ func TestTunnel(t *testing.T) {
 		logger.Warning("client loop quit")
 	}()
 
-	get_myip(t, client, &wg)
+	// get_myip(t, client, &wg)
 
 	multi_client(t, client, &wg)
 	wg.Wait()

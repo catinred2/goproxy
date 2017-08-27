@@ -67,6 +67,26 @@ type Handler interface {
 	Handle(net.Conn) error
 }
 
+var ProtocolHandlers map[string]Handler
+
+func init() {
+	p := new(TcpProxy)
+	ProtocolHandlers = map[string]Handler{
+		"tcp":  p,
+		"tcp4": p,
+		"tcp6": p,
+	}
+}
+
+func RegisterNetwork(network string, handler Handler) (ok bool) {
+	_, ok = ProtocolHandlers[network]
+	if ok {
+		return false
+	}
+	ProtocolHandlers[network] = handler
+	return true
+}
+
 type Server struct {
 	Handler
 }
@@ -123,24 +143,18 @@ func (s *TunnelServer) SendFrame(f *Frame) (err error) {
 
 func (s *TunnelServer) onSyn(streamid uint16, syn *Syn) (err error) {
 	var c *Conn
-	switch syn.Network {
-	default:
+	handler, ok := ProtocolHandlers[syn.Network]
+	if !ok {
+		logger.Errorf("unknown network: %s.", syn.Network)
 		err = ErrUnknownNetwork
-		logger.Error(err.Error())
 		return
-	case "myip":
-		c, err = s.accept(streamid, syn)
-		if err != nil {
-			return
-		}
-		go myip(c)
-	case "tcp", "tcp4", "tcp6":
-		c, err = s.accept(streamid, syn)
-		if err != nil {
-			return
-		}
-		go tcp_proxy(c)
 	}
+
+	c, err = s.accept(streamid, syn)
+	if err != nil {
+		return
+	}
+	go handler.Handle(c)
 	return
 }
 
