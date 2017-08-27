@@ -36,11 +36,12 @@ func RecvWithTimeout(ch chan uint32, t time.Duration) (errno uint32) {
 // use lock to protect: status, window.
 // SendFrame are not included.
 type Conn struct {
-	fab      *Fabric
-	lock     sync.Mutex
-	status   uint8
-	streamid uint16
-	ch_syn   chan uint32
+	fab       *Fabric
+	lock      sync.Mutex
+	status    uint8
+	streamid  uint16
+	ch_syn    chan uint32
+	t_closing *time.Timer
 
 	r_rest []byte
 	rqueue *Queue
@@ -301,14 +302,19 @@ func (c *Conn) Final() {
 }
 
 func (c *Conn) closeWrite() (err error) {
+	// When sbd trying to close a conn, there should always have a daedline which
+	// the connection can surely been closed.
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	switch c.status {
 	case ST_EST:
 		c.status = ST_FIN_SENT
+		c.t_closing = time.AfterFunc(CLOSE_TIMEOUT*time.Microsecond, c.Reset)
 	case ST_FIN_RECV:
 		c.status = ST_UNKNOWN
+		c.t_closing.Stop()
+		c.t_closing = nil
 		c.Final()
 	case ST_UNKNOWN:
 		return
@@ -334,8 +340,11 @@ func (c *Conn) closeRead() (err error) {
 	switch c.status {
 	case ST_EST:
 		c.status = ST_FIN_RECV
+		c.t_closing = time.AfterFunc(CLOSE_TIMEOUT*time.Microsecond, c.Reset)
 	case ST_FIN_SENT:
 		c.status = ST_UNKNOWN
+		c.t_closing.Stop()
+		c.t_closing = nil
 		c.Final()
 	case ST_UNKNOWN:
 		return

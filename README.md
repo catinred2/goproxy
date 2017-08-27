@@ -22,13 +22,22 @@ msocks协议最大的改进是增加了连接复用能力，这个功能允许�
 
 但是由于多个tcp复用封装到一个tcp内，导致单tcp过慢时所有请求的速度都受到压制。因此记得调优tcp配置，增强LFN下的网络效率。而且注意，当高速下载境外资源时，其他翻墙访问会受到影响。
 
-	net.ipv4.tcp_congestion_control = htcp
+## Linux内核参数调优
+
+	net.ipv4.tcp_congestion_control = bbr
+	net.ipv4.tcp_retries2 = 8
 	net.core.rmem_default = 2621440
 	net.core.rmem_max = 16777216
 	net.core.wmem_default = 655360
 	net.core.wmem_max = 16777216
 	net.ipv4.tcp_rmem = 4096        2621440 16777216
 	net.ipv4.tcp_wmem = 4096        655360  16777216
+
+含义为如下:
+
+* 使用bbr作为拥塞控制协议（非常重要，尤其是对服务器端非常有效）。
+* tcp重传次数设定为8。由于msocks并没有检测远端是否收到了数据（tcp保证这一点），因此当远端消失时，是由tcp的重传失败机制来废弃连接。这个机制默认需要924.6秒以上来断开连接，而未断开的连接在这种状态下都会形同僵死，因此实际中我们需要将他调快一点。根据RFC1122的建议，最低不应少于100秒，对应值为8。更多说明请查看[这里](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt)。
+* 调整网络收发缓冲区的大小。
 
 ## 连接池规则
 
