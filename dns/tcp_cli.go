@@ -30,14 +30,15 @@ func (client *TcpClient) makeConn(create bool) (err error) {
 		return
 	}
 
-	conn := client.conn
-	err = conn.Close()
-	if err != nil {
-		return
+	if client.conn != nil {
+		err = client.conn.Close()
+		if err != nil {
+			return
+		}
+		client.conn = nil
 	}
-	client.conn = nil
 
-	conn, err = client.dialer.Dial("dns", "")
+	conn, err := client.dialer.Dial("dns", "")
 	if err != nil {
 		return
 	}
@@ -60,7 +61,7 @@ func (client *TcpClient) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 			logger.Error(err.Error())
 			continue
 		case io.EOF:
-			err = client.createConn(false)
+			err = client.makeConn(false)
 			if err != nil {
 				logger.Error(err.Error())
 				return

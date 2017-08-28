@@ -14,7 +14,7 @@ type Dialer struct {
 	*Pool
 	MinSess  int
 	MaxConn  int
-	lock     sync.RWMutex
+	lock     sync.Mutex
 	creators []*tunnel.DialerCreator
 }
 
@@ -94,17 +94,17 @@ func (dialer *Dialer) Get() (tun tunnel.Tunnel, err error) {
 // Repeat for DIAL_RETRY times.
 // Each time it will take 2 ^ (net.ipv4.tcp_syn_retries + 1) - 1 second(s).
 // eg. net.ipv4.tcp_syn_retries = 4, connect will timeout in 2 ^ (4 + 1) -1 = 31s.
-func (dialer *Dialer) newTunnel(first bool) (err error) {
+func (dialer *Dialer) newTunnel(create bool) (err error) {
 	var tun tunnel.Tunnel
-	dialer.lock.RLock()
-	if first && (dialer.GetSize() != 0) {
-		dialer.lock.RUnlock()
+	dialer.lock.Lock()
+	if create && (dialer.GetSize() != 0) {
+		dialer.lock.Unlock()
 		logger.Debug("create first tunnel but already have one.")
 		return
 	}
 
 	if len(dialer.creators) == 0 {
-		dialer.lock.RUnlock()
+		dialer.lock.Unlock()
 		err = ErrNoCreator
 		logger.Error(err.Error())
 		return
@@ -121,7 +121,7 @@ func (dialer *Dialer) newTunnel(first bool) (err error) {
 		}
 		break
 	}
-	dialer.lock.RUnlock()
+	dialer.lock.Unlock()
 
 	if err != nil {
 		logger.Critical("can't connect to any server, quit.")
