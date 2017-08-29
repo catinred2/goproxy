@@ -15,10 +15,6 @@ import (
 	"github.com/shell909090/goproxy/netutil"
 )
 
-// var (
-// 	ErrParseIP = errors.New("can't get myip.")
-// )
-
 func ParseUint(s string) (n uint64) {
 	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
@@ -28,57 +24,11 @@ func ParseUint(s string) (n uint64) {
 	return
 }
 
-// type TaobaoResp struct {
-// 	Code int `json:"code"`
-// 	Data struct {
-// 		IP string `json:"ip"`
-// 	} `json:"data"`
-// }
-
-// func getMyIP() (ip string, err error) {
-// 	resp, err := http.Get("http://ip.taobao.com/service/getIpInfo.php?ip=myip")
-// 	if err != nil {
-// 		logger.Errorf("get myip err: %s.", err.Error())
-// 		return
-// 	}
-// 	defer resp.Body.Close()
-
-// 	var tbresp TaobaoResp
-
-// 	err = json.NewDecoder(resp.Body).Decode(&tbresp)
-// 	if err != nil {
-// 		logger.Errorf("parse myip err: %s.", err.Error())
-// 		return
-// 	}
-
-// 	return tbresp.Data.IP, nil
-// }
-
-// func getMyIP(dialer netutil.Dialer) (myip string) {
-// 	conn, err := dialer.Dial("myip", "")
-// 	if err != nil {
-// 		logger.Error(err.Error())
-// 		return
-// 	}
-
-// 	p, err := ioutil.ReadAll(conn)
-// 	if err != nil {
-// 		logger.Error(err.Error())
-// 		return
-// 	}
-
-// 	myaddr := string(p)
-// 	r := strings.Split(myaddr, ":")
-// 	myip = r[0]
-// 	return
-// }
-
 type HttpsDns struct {
 	Resolver
 	dialer    netutil.Dialer
 	baseurl   string
 	transport http.RoundTripper
-	// MyIP      string
 }
 
 func NewHttpsDns(dialer netutil.Dialer) (httpsdns *HttpsDns, err error) {
@@ -116,15 +66,6 @@ func (handler *HttpsDns) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 			}
 		}
 	}
-
-	// if handler.MyIP == "" {
-	// 	handler.MyIP = getMyIP(handler.dialer)
-	// 	logger.Infof("my ip is %s.", handler.MyIP)
-	// }
-
-	// if subnet == "" && handler.MyIP != "" {
-	// 	subnet = handler.MyIP
-	// }
 
 	jsonresp, err := handler.QueryHttpsDNS(
 		fmt.Sprintf("%v", quiz.Question[0].Qtype),
@@ -229,6 +170,13 @@ func (msg *DNSMsg) TranslateAnswer(quiz *dns.Msg) (resp *dns.Msg, err error) {
 	TranslateRRs(&msg.Answer, &resp.Answer)
 	TranslateRRs(&msg.Authority, &resp.Ns)
 	TranslateRRs(&msg.Additional, &resp.Extra)
+
+	// TODO: is this right?
+	clientip := strings.Split(msg.Edns_client_subnet, "/")[0]
+	addr := net.ParseIP(clientip)
+	if addr != nil {
+		appendEdns0Subnet(resp, addr)
+	}
 
 	return
 }

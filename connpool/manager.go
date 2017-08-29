@@ -5,7 +5,8 @@ import (
 	"html/template"
 	"net/http"
 
-	"github.com/shell909090/goproxy/dns"
+	"github.com/miekg/dns"
+	mydns "github.com/shell909090/goproxy/dns"
 )
 
 const (
@@ -72,13 +73,9 @@ const (
     <meta name="author" content="Shell.Xu">
   </head>
   <body>
-    <table>
-      {{range $addr := .}}
-	<tr>
-	  <td>{{$addr}}</td>
-	</tr>
-      {{end}}
-    </table>
+    <pre>
+{{.}}
+    </pre>
   </body>
 </html>`
 )
@@ -109,13 +106,6 @@ func (pool *Pool) HandlerMain(w http.ResponseWriter, req *http.Request) {
 	return
 }
 
-// func (pool *Pool) GetMyIP() string {
-// 	if httpsdns, ok := dns.DefaultResolver.(dns.HttpsDns); ok {
-// 		return httpsdns.MyIP
-// 	}
-// 	return ""
-// }
-
 func HandlerLookup(w http.ResponseWriter, req *http.Request) {
 	q := req.URL.Query()
 	hosts, ok := q["host"]
@@ -125,14 +115,33 @@ func HandlerLookup(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	addrs, err := dns.DefaultResolver.LookupIP(hosts[0])
-	if err != nil {
-		w.WriteHeader(500)
-		fmt.Fprintf(w, "error %s", err)
-		return
+	rslt := ""
+	if exhg, ok := mydns.DefaultResolver.(mydns.Exchanger); ok {
+		quiz := new(dns.Msg)
+		quiz.SetQuestion(dns.Fqdn(hosts[0]), dns.TypeA)
+		quiz.RecursionDesired = true
+
+		resp, err := exhg.Exchange(quiz)
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "error %s", err)
+			return
+		}
+
+		rslt = resp.String()
+	} else {
+		addrs, err := mydns.DefaultResolver.LookupIP(hosts[0])
+		if err != nil {
+			w.WriteHeader(500)
+			fmt.Fprintf(w, "error %s", err)
+			return
+		}
+		for _, addr := range addrs {
+			rslt += addr.String() + "\r\n"
+		}
 	}
 
-	err = tmpl_addr.Execute(w, addrs)
+	err := tmpl_addr.Execute(w, rslt)
 	if err != nil {
 		logger.Error(err.Error())
 	}

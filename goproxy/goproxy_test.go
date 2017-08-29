@@ -99,11 +99,6 @@ func TestGoproxy(t *testing.T) {
 			return
 		}
 	}
-	err = testURL(myClient, "https://www.sina.com.cn/")
-	if err != nil {
-		t.Error(err)
-		return
-	}
 
 	return
 }
