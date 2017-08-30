@@ -60,10 +60,11 @@ func (client *TcpClient) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 		default:
 			logger.Error(err.Error())
 			continue
-		case io.EOF:
+		case io.EOF, io.ErrClosedPipe:
 			err = client.makeConn(false)
 			if err != nil {
-				logger.Error(err.Error())
+				logger.Info("dns broken")
+				err = nil
 				return
 			}
 		}
