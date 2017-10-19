@@ -23,9 +23,12 @@ test:
 	go test github.com/shell909090/goproxy/goproxy
 
 install-dep:
-	go get github.com/shell909090/goproxy
-	go get github.com/op/go-logging
-	go get github.com/miekg/dns
+	go get -u github.com/op/go-logging
+	go get -u github.com/miekg/dns
+	go get -u golang.org/x/net/http2
+
+install-deb:
+	apt-get install devscripts dh-systemd
 
 build:
 	mkdir -p bin
