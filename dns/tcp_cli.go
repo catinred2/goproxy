@@ -48,7 +48,10 @@ func (client *TcpClient) makeConn(create bool) (err error) {
 
 func (client *TcpClient) Exchange(quiz *dns.Msg) (resp *dns.Msg, err error) {
 	logger.Debugf("query %s", quiz.Question[0].Name)
-	client.makeConn(true)
+	err = client.makeConn(true)
+	if err != nil {
+		return
+	}
 
 	for i := 0; i < 3; i++ {
 		client.lock.RLock()
