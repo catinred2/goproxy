@@ -52,6 +52,17 @@ func (s *Session) GetSize() int {
 	return len(s.ports)
 }
 
+func (s *Session) GetPortById(id uint16) (FrameSender, error) {
+	s.plock.Lock()
+	defer s.plock.Unlock()
+
+	c, ok := s.ports[id]
+	if !ok || c == nil {
+		return nil, ErrStreamNotExist
+	}
+	return c, nil
+}
+
 func (s *Session) GetPorts() (ports []*Conn) {
 	s.plock.RLock()
 	defer s.plock.RUnlock()
