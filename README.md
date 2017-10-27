@@ -242,6 +242,18 @@ If dns response get multiple result, one of them matched blacklist will made gop
 		]
 	}
 
+## SSL证书配置和诊断
+
+goproxy走的是标准TLS验证流程。配置模式是，服务器持有的CA可以验证客户端的cert和key，客户端持有的CA可以验证服务器端的cert和key。并且，我强烈的建议你为服务器端配置一个合法公开签署的证书——就是正常给网站配置https用的那种。因为自签署的证书容易被发现并识别。
+
+在这个前提下，客户端需要持有服务器的CA根（注意，一定要找到对应的服务器颁发者的CA根，因为我不相信很多系统里内置的CA，里面有一些你懂，可能发生MITM攻击），服务器则持有被颁发的cert和key。客户端则没有这个要求，你可以自己生成一个CA，证书让服务器持有，然后颁发证书给客户端。
+
+在这个过程中，你可能需要诊断PKI体系配置是否正确。最简单的办法是用openssl来验证。在上述模式下，如果你配置正确的话，你可以用这句语句来连接服务器端。
+
+	openssl s_client --showcerts -cert client.crt -key client.crt --connect serverip:port
+
+注意，我禁用了TLS1.2以外的所有协议，并且只允许部分cipher。所以，如果你是自己编写代码去连接的话，注意协议和cipher协商。
+
 ## TLS权限问题
 
 默认情况下，goproxy使用nobody和nogroup作为启动用户和组。这是一个非常小权限的组，在系统内相对比较安全。
