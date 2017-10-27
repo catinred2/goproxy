@@ -18,9 +18,9 @@ clean:
 
 test:
 	go test github.com/shell909090/goproxy/tunnel
-	go test github.com/shell909090/goproxy/dns
+	# go test github.com/shell909090/goproxy/dns
 	go test github.com/shell909090/goproxy/ipfilter
-	go test github.com/shell909090/goproxy/goproxy
+	# go test github.com/shell909090/goproxy/goproxy
 
 install-dep:
 	go get -u github.com/op/go-logging
@@ -33,6 +33,12 @@ install-deb:
 build:
 	mkdir -p bin
 	go build -o bin/goproxy github.com/shell909090/goproxy/goproxy
+
+build-deb:
+	go get -u -d github.com/shell909090/goproxy/goproxy
+	dpkg-buildpackage
+	mkdir debuild
+	mv ../goproxy_* debuild
 
 install: build
 	install -d $(DESTDIR)/usr/bin/

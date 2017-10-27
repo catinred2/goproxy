@@ -2,13 +2,14 @@ Source: goproxy
 Section: net
 Priority: extra
 Maintainer: Shell Xu <shell909090@gmail.com>
-Build-Depends: debhelper (>= 8.0.0), dh-systemd (>= 1.5), dh-systemd
-Standards-Version: 3.9.6
+Build-Depends: debhelper (>= 10.0.0), dh-systemd (>= 10)
+Standards-Version: 4.1.1
 Homepage: https://github.com/shell909090/goproxy
 
 Package: goproxy
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: anti-GFW proxy written by go.
- goproxy is a anti-GFW proxy written by go. Connection can be crypto by aes or
- des. this might help for people in China to corss GFW.
+Description: GFW circumvention proxy.
+ goproxy is a GFW circumvention proxy written by go. Connection can be
+ encrypted by aes, des or TLS. It might be helpful for people live in
+ China to circumvent the GFW.

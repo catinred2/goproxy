@@ -37,7 +37,7 @@ func TestTcpTunnel(t *testing.T) {
 	}()
 
 	client := NewTcpClient(tun)
-	_, err = client.LookupIP("www.google.com")
+	_, err = client.LookupIP("www.baidu.com")
 	if err != nil {
 		t.Error(err)
 		return
