@@ -8,37 +8,32 @@ LEVEL=NOTICE
 
 all: build
 
-buildtar: build
-	strip bin/goproxy
-	tar cJf ../goproxy-`uname -m`.tar.xz bin/goproxy debian/config.json debian/routes.list.gz
+download:
+	go get -u -d github.com/shell909090/goproxy/goproxy
+
+build:
+	mkdir -p bin
+	go build -o bin/goproxy github.com/shell909090/goproxy/goproxy
 
 clean:
 	rm -rf bin pkg
 	debclean
 
-test:
-	go test github.com/shell909090/goproxy/tunnel
-	# go test github.com/shell909090/goproxy/dns
-	go test github.com/shell909090/goproxy/ipfilter
-	# go test github.com/shell909090/goproxy/goproxy
-
-install-dep:
-	go get -u github.com/op/go-logging
-	go get -u github.com/miekg/dns
-	go get -u golang.org/x/net/http2
-
-install-deb:
-	apt-get install devscripts dh-systemd
-
-build:
-	mkdir -p bin
-	go build -o bin/goproxy github.com/shell909090/goproxy/goproxy
+build-tar: build
+	strip bin/goproxy
+	tar cJf ../goproxy-`uname -m`.tar.xz bin/goproxy debian/config.json debian/routes.list.gz
 
 build-deb:
 	go get -u -d github.com/shell909090/goproxy/goproxy
 	dpkg-buildpackage
 	mkdir debuild
 	mv ../goproxy_* debuild
+
+test:
+	go test github.com/shell909090/goproxy/tunnel
+	# go test github.com/shell909090/goproxy/dns
+	go test github.com/shell909090/goproxy/ipfilter
+	# go test github.com/shell909090/goproxy/goproxy
 
 install: build
 	install -d $(DESTDIR)/usr/bin/

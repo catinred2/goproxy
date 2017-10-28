@@ -24,6 +24,10 @@
   * [File Permission](#file-permission)
   * [Admin Interface](#admin-interface)
 * [Compile](#compile)
+  * [Compile Binary](#compile-binary)
+  * [Compile Tar](#compile-Tar)
+  * [Compile Debian Package](#compile-debian-package)
+  * [Compile Debian Package with Docker](#compile-debian-package-with-docker)
 * [Detail](#detail)
   * [Linux Kernel Setting](#linux-kernel-setting)
 * [Thanks](#Thanks)
@@ -68,7 +72,9 @@ goproxy的最基础发行形态为二进制发行。整个程序包含一个bin�
 
 ## Debian Package
 
-goproxy可以编译为deb包，此种形态下可以直接安装到debian基础的系统中。路由表文件会被安装到/usr/share/goproxy/routes.list.gz，配置文件路径为/etc/goproxy。启动时默认为root，日志文件为/var/log/goproxy.log，没有logrotate。
+deb包是适用于debian/ubuntu的安装包，goproxy可以编译为deb包，直接安装到debian基础的系统中。目前打包和测试都是在debian stable上完成，因此对此支持的最完美。debian上基本可保证正常运行，ubuntu的兼容性希望得到反馈。
+
+deb包中，主程序在/usr/bin下，路由表文件会被安装到/usr/share/goproxy/routes.list.gz。配置文件在/etc/goproxy下，修改配置文件后重启服务生效。服务使用systemd管理，配置文件在/lib/systemd/system/goproxy.service。启动时默认为root，日志文件为/var/log/goproxy.log，没有logrotate。
 
 ## Docker Image
 
@@ -220,34 +226,38 @@ goproxy可以使用nobody和nogroup作为启动用户和组。这是一个非常
 
 # Compile
 
-## deb包解说
+## Compile Binary
 
-deb包是适用于debian/ubuntu的安装包。目前打包和测试都是在debian testing上完成，因此对此种系统的支持最完美。debian stable上可保证正常运行。ubuntu的兼容性希望得到反馈。同时希望有人做ubuntu移植，将启动模式改为upstart。
+编译二进制文件非常简单，直接`make`就行。要求当前系统中有golang编译环境，并且所有依赖包都安装到位。
 
-deb包中，主程序在/usr/bin下，启动项在/etc/init.d/goproxy下，配置文件在/etc/goproxy下。修改配置文件后重启服务生效。
+依赖包可以使用`make download`来安装。
 
-默认black文件在/usr/share/goproxy/routes.list.gz。日志默认在/var/log/goproxy.log生成。日志的配置在init文件中修改。
+## Compile Tar
 
-在debian目录下有个默认的init脚本，负责将goproxy封装为服务。
+tar为binary的延伸。里面包含主程序，config.json示例，routes.list.gz。可以直接复制到目标机器解压。然后使用goproxy -config config.json来启动程序。
 
-## tar包解说
+编译tar包也非常简单，保证编译二进制正常的前提下，使用`make build-tar`编译。
 
-tar包内包含主程序，routes.list.gz示例。没有config.json示例。因此你需要自行编写一个正确的config.json，然后使用goproxy -config config.json来启动程序。
+## Compile Debian Package
 
-整个包不需要安装，手工启动和关闭。如果需要自动启动机制，请自行处理。
+编译debian包需要一个同种debian环境作为基础，在上面安装devscripts和dh-systemd。随后需要在上面配置golang编译环境，并能正确执行make。
 
-## docker
+在此基础上，执行`make build-deb`进行编译。编译后的文件可以在debuild目录找到。编译残留可以用debclean清理，或执行`make clean`。
 
-build "gobuilder" image
+## Compile Debian Package with Docker
+
+首先，需要生成编译环境镜像。
 
 	cd gobuilder
 	./build.sh
 
-build debian package
+这会生成gobuilder这个image。如果你需要打包32位系统，请用gobuilder32。
+
+随后编译debian包。
 
 	sudo docker run --rm -v "$PWD":/srv/myapp/ -w /srv/myapp/ gobuilder make build-deb
 
-result can be found in debuild directory. take care of the permission.
+编译后的文件可以在debuild目录找到。注意，这里的文件权限可能是root。
 
 # Detail
 
