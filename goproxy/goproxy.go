@@ -109,7 +109,8 @@ func main() {
 	case "server":
 		logger.Notice("server mode start.")
 
-		cfg, err := LoadServerConfig(basecfg)
+		var cfg *ServerConfig
+		cfg, err = LoadServerConfig(basecfg)
 		if err != nil {
 			break
 		}
@@ -119,12 +120,14 @@ func main() {
 	case "http":
 		logger.Notice("http mode start.")
 
-		cfg, err := LoadClientConfig(basecfg)
+		var cfg *ClientConfig
+		cfg, err = LoadClientConfig(basecfg)
 		if err != nil {
 			break
 		}
 
 		err = RunHttproxy(cfg)
+
 	default:
 		logger.Info("unknown mode")
 		return
