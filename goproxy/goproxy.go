@@ -111,7 +111,7 @@ func main() {
 
 		cfg, err := LoadServerConfig(basecfg)
 		if err != nil {
-			return
+			break
 		}
 
 		err = RunServer(cfg)
@@ -121,7 +121,7 @@ func main() {
 
 		cfg, err := LoadClientConfig(basecfg)
 		if err != nil {
-			return
+			break
 		}
 
 		err = RunHttproxy(cfg)
