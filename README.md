@@ -28,8 +28,11 @@
   * [Compile Tar](#compile-Tar)
   * [Compile Debian Package](#compile-debian-package)
   * [Compile Debian Package with Docker](#compile-debian-package-with-docker)
+  * [Compile Docker Image](#compile-docker-image)
 * [Detail](#detail)
   * [Linux Kernel Setting](#linux-kernel-setting)
+  * [Pool Rules](#pool-rules)
+  * [Server Choice](#server-choice)
 * [Thanks](#Thanks)
 
 # Abstract
@@ -228,7 +231,7 @@ goproxy可以使用nobody和nogroup作为启动用户和组。这是一个非常
 
 ## Compile Binary
 
-编译二进制文件非常简单，直接`make`就行。要求当前系统中有golang编译环境，并且所有依赖包都安装到位。
+编译二进制文件非常简单，直接`make build`就行。要求当前系统中有golang编译环境，并且所有依赖包都安装到位。
 
 依赖包可以使用`make download`来安装。
 
@@ -248,7 +251,7 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 
 首先，需要生成编译环境镜像。
 
-	cd gobuilder
+	cd docker/gobuilder
 	./build.sh
 
 这会生成gobuilder这个image。如果你需要打包32位系统，请用gobuilder32。
@@ -258,6 +261,14 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 	sudo docker run --rm -v "$PWD":/srv/myapp/ -w /srv/myapp/ gobuilder make build-deb
 
 编译后的文件可以在debuild目录找到。注意，这里的文件权限可能是root。
+
+## Compile Docker Image
+
+docker image的打包需要两个基础，已经编译好的bin/goproxy，和busybox:glibc镜像。请先按照[Compile Binary](#compile-binary)一节的说明，编译可执行代码。而后通过`docker/goproxy/build.sh`来生成goproxy这个image。随后用下面这条指令来启动goproxy。
+
+	sudo docker run --rm -d -v "$PWD":/etc/goproxy/ -p port:port goproxy goproxy
+
+--rm说明执行完成后删除container。-v将当前目录映射到/etc/goproxy/，-p将外部端口映射进去。对等的，当前路径中必须存在config.json，其中的证书之类必须写全路径。端口需要和-p中指定的一致。routes.list.gz在/etc/目录下。
 
 # Detail
 
@@ -278,7 +289,7 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 * tcp重传次数设定为8。由于msocks并没有检测远端是否收到了数据（tcp保证这一点），因此当远端消失时，是由tcp的重传失败机制来废弃连接。这个机制默认需要924.6秒以上来断开连接，而未断开的连接在这种状态下都会形同僵死，因此实际中我们需要将他调快一点。根据RFC1122的建议，最低不应少于100秒，对应值为8。更多说明请查看[这里](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt)。
 * 调整网络收发缓冲区的大小。
 
-## 连接池规则
+## Pool Rules
 
 在msocks的客户端，一次会主动发起一个连接。当连接数低于一定个数时会主动补充(目前编译时设定为1)。
 
@@ -290,7 +301,7 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 
 总体来说，连接池使得每个tcp承载的最大连接数保持在一定值。避免大量连接堵塞在一个tcp上，同时也尽力避免频繁的tcp连接握手和释放。
 
-## 服务器选择规则
+## Server Choice
 
 当链接数不足时，会发起新连接。由于配置允许写入多个服务器端，因此程序会随机选择一个配置尝试连接。如果尝试失败（无法握手或者超时），会选择下一个配置。如此重复两轮，如果都无法连接，则连接发起失败。
 
@@ -307,3 +318,5 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 * 增加dns对外服务？
 * Encapsulate tcp into http.
 * Speed control, low speed go first?
+
+sudo docker run --rm -it -v "$PWD":/etc/goproxy/ goproxy goproxy
