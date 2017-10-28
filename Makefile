@@ -1,12 +1,12 @@
 ### Makefile --- 
 
-## Author: shell@shell-deb.shdiv.qizhitech.com
+## Author: shell909090@gmail.com
 ## Version: $Id: Makefile,v 0.0 2012/11/02 06:18:14 shell Exp $
 ## Keywords: 
 ## X-URL: 
 LEVEL=NOTICE
 
-all: build
+all: download build
 
 download:
 	go get -u -d github.com/shell909090/goproxy/goproxy
@@ -23,8 +23,7 @@ build-tar: build
 	strip bin/goproxy
 	tar cJf ../goproxy-`uname -m`.tar.xz bin/goproxy debian/config.json debian/routes.list.gz
 
-build-deb:
-	go get -u -d github.com/shell909090/goproxy/goproxy
+build-deb: download
 	dpkg-buildpackage
 	mkdir debuild
 	mv ../goproxy_* debuild
