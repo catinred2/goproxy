@@ -249,14 +249,7 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 
 ## Compile Debian Package with Docker
 
-首先，需要生成编译环境镜像。
-
-	cd docker/gobuilder
-	./build.sh
-
-这会生成gobuilder这个image。如果你需要打包32位系统，请用gobuilder32。
-
-随后编译debian包。
+首先，需要生成编译环境镜像。执行指令`docker/gobuilder/build.sh`，会生成gobuilder这个image。如果你需要打包32位系统，请用gobuilder32。随后编译debian包。
 
 	sudo docker run --rm -v "$PWD":/srv/myapp/ -w /srv/myapp/ gobuilder make build-deb
 
