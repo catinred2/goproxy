@@ -257,7 +257,7 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 
 ## Compile Docker Image
 
-docker image的打包需要两个基础，已经编译好的bin/goproxy，和busybox:glibc镜像。请先按照[Compile Binary](#compile-binary)一节的说明，编译可执行代码。而后通过`docker/goproxy/build.sh`来生成goproxy这个image。随后用下面这条指令来启动goproxy。
+docker image的打包需要两个基础，已经编译好的bin/goproxy，和busybox:glibc镜像。请先按照[Compile Binary](#compile-binary)一节的说明，编译可执行代码。而后通过`docker/goproxy/build.sh`来生成goproxy这个image。如果需要生成32位镜像请用goproxy32。随后用下面这条指令来启动goproxy。
 
 	sudo docker run --rm -d -v "$PWD":/etc/goproxy/ -p port:port goproxy goproxy
 
