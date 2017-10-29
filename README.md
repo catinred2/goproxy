@@ -81,7 +81,11 @@ deb包中，主程序在/usr/bin下，路由表文件会被安装到/usr/share/g
 
 ## Docker Image
 
-TODO
+你可以用`sudo docker pull user/goproxy`从docker hub上下载合适的docker镜像。随后用下面这条指令来启动goproxy。
+
+	sudo docker run --rm -d -v "$PWD":/etc/goproxy/ -p port:port user/goproxy goproxy
+
+--rm说明执行完成后删除container。-v将当前目录映射到/etc/goproxy/，-p将外部端口映射进去。对等的，当前路径中必须存在config.json，其中的证书之类必须写全路径(即当前路径为/etc/goproxy)。端口需要和-p中指定的一致。routes.list.gz在/etc/目录下。如果镜像名字叫goproxy(例如刚刚完成编译)，将上面的user/goproxy换为goproxy。
 
 # Configure
 
@@ -257,11 +261,12 @@ tar为binary的延伸。里面包含主程序，config.json示例，routes.list.
 
 ## Compile Docker Image
 
-docker image的打包需要两个基础，已经编译好的bin/goproxy，和busybox:glibc镜像。请先按照[Compile Binary](#compile-binary)一节的说明，编译可执行代码。而后通过`docker/goproxy/build.sh`来生成goproxy这个image。如果需要生成32位镜像请用goproxy32。随后用下面这条指令来启动goproxy。
+docker image的打包需要两个基础，已经编译好的bin/goproxy，和busybox:glibc镜像。请先按照[Compile Binary](#compile-binary)一节的说明，编译可执行代码。而后通过`docker/goproxy/build.sh`来生成goproxy这个image。如果需要生成32位镜像请用goproxy32。
 
-	sudo docker run --rm -d -v "$PWD":/etc/goproxy/ -p port:port goproxy goproxy
+随后，你可以用以下指令来标记和上传。
 
---rm说明执行完成后删除container。-v将当前目录映射到/etc/goproxy/，-p将外部端口映射进去。对等的，当前路径中必须存在config.json，其中的证书之类必须写全路径。端口需要和-p中指定的一致。routes.list.gz在/etc/目录下。
+	sudo docker tag goproxy user/goproxy
+	sudo docker push user/goproxy
 
 # Detail
 
@@ -311,5 +316,3 @@ docker image的打包需要两个基础，已经编译好的bin/goproxy，和bus
 * 增加dns对外服务？
 * Encapsulate tcp into http.
 * Speed control, low speed go first?
-
-sudo docker run --rm -it -v "$PWD":/etc/goproxy/ goproxy goproxy
