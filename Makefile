@@ -12,12 +12,14 @@ download:
 	go get -u -d github.com/shell909090/goproxy/goproxy
 
 build:
+	mkdir -p gopath/src/github.com/shell909090/
+	ln -s "$$PWD" gopath/src/github.com/shell909090/goproxy
 	mkdir -p bin
-	go build -o bin/goproxy github.com/shell909090/goproxy/goproxy
+	GOPATH="$$PWD/gopath":"$$GOPATH" go build -o bin/goproxy github.com/shell909090/goproxy/goproxy
+	rm -rf gopath
 
 clean:
-	rm -rf bin pkg
-	debclean
+	rm -rf bin pkg gopath
 
 build-tar: build
 	strip bin/goproxy

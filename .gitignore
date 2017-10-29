@@ -1,19 +1,21 @@
 *.exe
 *.iso
-
-bin
-pkg
-key
 *.key
 *.log
 *.pyc
 *.json
 *.html
 *.prof
+obj*
+
+bin
+pkg
+key
+debuild
+gopath
 
 debian/*.debhelper
 debian/debhelper-build-stamp
 debian/files
 debian/goproxy.substvars
 debian/goproxy/
-obj*
